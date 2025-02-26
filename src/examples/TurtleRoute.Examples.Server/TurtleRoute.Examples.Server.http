@@ -1,0 +1,6 @@
+@TurtleRoute.Examples.Server_HostAddress = http://localhost:5070
+
+GET {{TurtleRoute.Examples.Server_HostAddress}}/coordinates/
+Accept: application/json
+
+###
