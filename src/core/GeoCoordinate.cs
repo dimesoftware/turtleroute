@@ -24,11 +24,11 @@ namespace TurtleRoute
 
         public override int GetHashCode()
             => Latitude.GetHashCode() ^ Longitude.GetHashCode();
-        
-        public static bool operator ==(GeoCoordinate left, GeoCoordinate right) 
+
+        public static bool operator ==(GeoCoordinate left, GeoCoordinate right)
             => left.Equals(right);
 
-        public static bool operator !=(GeoCoordinate left, GeoCoordinate right) 
+        public static bool operator !=(GeoCoordinate left, GeoCoordinate right)
             => !(left == right);
     }
 }
