@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TurtleRoute.Examples.Server
 EndProject
 Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "turtleroute.examples.client", "turtleroute.examples.client\turtleroute.examples.client.esproj", "{8BBDD263-0CDC-403A-B4C0-CF67E83D7375}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TurtleRoute", "..\core\TurtleRoute.csproj", "{90BB2BFB-9A00-488A-8B85-4A3409B805B3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TurtleRoute", "..\src\core\TurtleRoute.csproj", "{90BB2BFB-9A00-488A-8B85-4A3409B805B3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

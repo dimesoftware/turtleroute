@@ -3,7 +3,7 @@
 ## Mapbox config
 
 - Create a Mapbox account and generate a new key.
-- Paste the key in the mapboxgl.accessToken = '' variable in the map.tsx file.
+- In the `.env` file, set the VITE_MAPBOX_ACCESS_TOKEN parameter.
 
 ## Azure Maps config
 

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import './App.css';
-import Map from './components/map/map'
+import { useState } from 'react';
+import './map.css';
+import Map from './map'
 import { useForm, SubmitHandler } from "react-hook-form"
 
 interface Coordinate {
@@ -9,22 +9,23 @@ interface Coordinate {
 }
 
 type Inputs = {
-    query: string
+    from: string,
+    to: string
 }
 
 function App() {
-    const [coordinates, setCoordinates] = useState<Coordinate>();
+    const [routes, setRoutes] = useState<Coordinate[]>();
 
     const { register, handleSubmit, watch, formState: { errors }, } = useForm<Inputs>()
-    const onSubmit: SubmitHandler<Inputs> = async (data) => {       
+    const onSubmit: SubmitHandler<Inputs> = async (data) => {
         console.log("Submitting request...");
-        const response = await fetch('/coordinates?search=' + data.query);
+        const response = await fetch('/route?from=' + data.from + "&to=" + data.to);
         if (response.ok) {
             const data = await response.json();
 
             console.log("Response from server:");
             console.log(data);
-            setCoordinates({ lat: data.latitude, lng: data.longitude });
+            setRoutes(data);
         } else {
             console.log("Oops!");
         }
@@ -32,19 +33,20 @@ function App() {
 
     return (
         <div>
-            <h1 id="tableLabel">TurtleRoute</h1>
+
+            <h2 id="tableLabel">Route</h2>
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 {/* register your input into the hook by invoking the "register" function */}
-                <input defaultValue="Empire State Building" {...register("query")} />
+                <label>From:</label>
+                <input defaultValue="Central Park" {...register("from")} />
+
+                <label>To:</label>
+                <input defaultValue="Empire State Building" {...register("to")} />
                 <input type="submit" />
             </form>
 
-            <p>Coordinates:</p>
-            <p> Lat: {coordinates?.lat} <br/>
-                Lng: {coordinates?.lng} </p>
-
-            <Map coordinates={coordinates} />
+            <Map route={routes} />
         </div>
     );
 }

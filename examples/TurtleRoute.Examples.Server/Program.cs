@@ -30,6 +30,19 @@ app.MapGet("/coordinates", async (string search, IConfiguration config) =>
 .WithName("GetCoordinates")
 .WithOpenApi();
 
+app.MapGet("/route", async (string from, string to, IConfiguration config) =>
+{
+    string apiKey = config["token"] ?? throw new InvalidOperationException("API key not configured.");
+    Geocoder geocoder = new(apiKey);
+    GeoCoordinate? fromCoordinates = await geocoder.GeocodeAsync(from, string.Empty);
+    GeoCoordinate? toCoordinates = await geocoder.GeocodeAsync(to, string.Empty);
+
+    Router router = new(apiKey);
+    return await router.GetDirectionsAsync(fromCoordinates.Value, toCoordinates.Value);
+})
+.WithName("GetRoute")
+.WithOpenApi();
+
 app.MapFallbackToFile("/index.html");
 
 app.Run();

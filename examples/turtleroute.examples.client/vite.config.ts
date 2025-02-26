@@ -50,6 +50,10 @@ export default defineConfig({
             '^/coordinates': {
                 target,
                 secure: false
+            },
+            '^/route': {
+                target,
+                secure: false
             }
         },
         port: 59306,

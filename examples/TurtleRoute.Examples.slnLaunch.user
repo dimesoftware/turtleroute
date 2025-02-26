@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "TurtleRoute.Examples.Server\\TurtleRoute.Examples.Server.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "turtleroute.examples.client\\turtleroute.examples.client.esproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]
