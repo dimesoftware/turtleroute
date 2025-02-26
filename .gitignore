@@ -4,3 +4,4 @@
 NuGet.config
 **/appsettings.development.json
 **/*.coverage
+node_modules
