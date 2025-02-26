@@ -2,5 +2,5 @@
 **/obj
 *.vs
 NuGet.config
-appsettings.development.json
+**/appsettings.development.json
 **/*.coverage

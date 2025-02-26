@@ -37,11 +37,14 @@ namespace TurtleRoute.Tests
         {
             Router api = new(_token);
 
-            GeoCoordinate start = new(51.219501, 4.359231);
-            GeoCoordinate end = new(51.214625, 4.382112);
+            // Empire State Building
+            GeoCoordinate start = new(40.748515, -73.9848141);
+
+            // Flatiron building
+            GeoCoordinate end = new(40.741443, -73.989464);
 
             Route route = await api.GetDirectionsAsync(start, end);
-            Assert.IsTrue(route.Distance < 5000);
+            Assert.IsTrue(route.Distance < 1500);
         }
     }
 }
