@@ -21,16 +21,24 @@ namespace TurtleRoute
 
         private string Token { get; }
 
-        public async Task<IEnumerable<GeoCoordinate>> GetDirectionsAsync(params GeoCoordinate[] coordinates)
+        public async Task<Route> GetDirectionsAsync(params GeoCoordinate[] coordinates)
         {
             AzureKeyCredential credential = new(Token);
             MapsRoutingClient client = new(credential);
 
-            IEnumerable<GeoPosition> waypoints = coordinates.ToList().Select(x => new GeoPosition(x.Longitude, x.Latitude));
-            RouteDirectionQuery query = new(waypoints.ToList());
+            IEnumerable<GeoPosition> stops = coordinates.ToList().Select(x => new GeoPosition(x.Longitude, x.Latitude));
+            RouteDirectionQuery query = new(stops.ToList());
             Response<RouteDirections> result = await client.GetDirectionsAsync(query);
 
-            return result.Value.Routes[0].Legs.SelectMany(x => x.Points).Select(x => new GeoCoordinate(x.Latitude, x.Longitude));
+            if (!(result.Value?.Routes ?? []).Any())
+                return new Route();
+
+            return new Route()
+            {
+                Distance = result.Value.Routes[0].Summary.LengthInMeters ?? 0,
+                Duration = result.Value.Routes[0].Summary.TravelTimeInSeconds ?? 0,
+                Waypoints = result.Value.Routes[0].Legs.SelectMany(x => x.Points).Select(x => new GeoCoordinate(x.Latitude, x.Longitude));
+            };
         }
     }
 }

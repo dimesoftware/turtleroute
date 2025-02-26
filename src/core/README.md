@@ -12,11 +12,24 @@ dotnet add package TurtleRoute
 
 ## Usage
 
+### Geocoding
+
 ``` csharp
 using TurtleRoute;
 
 Geocoder api = new("MYTOKEN");
 GeoCoordinate? address = await api.GeocodeAsync("Katwilgweg", "2", "2050", "Antwerpen", "", "BE");
+```
+
+### Routing
+
+``` csharp
+Router api = new(_token);
+
+GeoCoordinate start = new(51.219501, 4.359231);
+GeoCoordinate end = new(51.214625, 4.382112);
+
+Route route = await api.GetDirectionsAsync(start, end);
 ```
 
 ## Contributing
