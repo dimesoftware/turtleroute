@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using TurtleRoute;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -43,11 +44,26 @@ app.MapGet("/route", async (string from, string to, IConfiguration config) =>
 .WithName("GetRoute")
 .WithOpenApi();
 
+app.MapPost("/trip", async ([FromBody] IEnumerable<GeoCoordinateDto> coordinates, IConfiguration config) =>
+{
+    string apiKey = config["token"] ?? throw new InvalidOperationException("API key not configured.");
+    Geocoder geocoder = new(apiKey);
+
+    Router router = new(apiKey);
+    return await router.GetTrip(null, coordinates.Select(x => (GeoCoordinate)x).ToArray());
+})
+.WithName("GetTrip")
+.WithOpenApi();
+
 app.MapFallbackToFile("/index.html");
 
 app.Run();
 
-internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
+public class GeoCoordinateDto
 {
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+
+    public static implicit operator GeoCoordinate(GeoCoordinateDto dto)
+        => new(dto.Latitude, dto.Longitude);
 }

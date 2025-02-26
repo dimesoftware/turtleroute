@@ -1,6 +1,6 @@
 import './App.css';
 import Geocode from './components/pages/geocode';
-import Route from './components/pages/route';
+import Trip from './components/pages/trip';
 
 function App() {
     return (
@@ -8,7 +8,7 @@ function App() {
             <h1 id="tableLabel">TurtleRoute</h1>
 
             <Geocode />
-            <Route />
+            <Trip />
         </div>
     );
 }

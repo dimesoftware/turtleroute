@@ -54,6 +54,10 @@ export default defineConfig({
             '^/route': {
                 target,
                 secure: false
+            },
+            '^/trip': {
+                target,
+                secure: false
             }
         },
         port: 59306,
