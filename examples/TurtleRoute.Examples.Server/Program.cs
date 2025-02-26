@@ -38,7 +38,7 @@ app.MapGet("/route", async (string from, string to, IConfiguration config) =>
     GeoCoordinate? toCoordinates = await geocoder.GeocodeAsync(to, string.Empty);
 
     Router router = new(apiKey);
-    return await router.GetDirectionsAsync(fromCoordinates.Value, toCoordinates.Value);
+    return await router.GetRouteAsync(fromCoordinates.Value, toCoordinates.Value);
 })
 .WithName("GetRoute")
 .WithOpenApi();

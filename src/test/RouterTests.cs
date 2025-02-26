@@ -43,8 +43,21 @@ namespace TurtleRoute.Tests
             // Flatiron building
             GeoCoordinate end = new(40.741443, -73.989464);
 
-            Route route = await api.GetDirectionsAsync(start, end);
+            Route route = await api.GetRouteAsync(start, end);
             Assert.IsTrue(route.Distance < 1500);
+        }
+
+        [TestMethod]
+        public async Task Router_Trip_ShouldGetDrivingDirections()
+        {
+            Router api = new(_token);
+
+            GeoCoordinate empireState = new(40.748515, -73.9848141);
+            GeoCoordinate flatIron = new(40.741443, -73.989464);
+            GeoCoordinate unionSquare = new(40.736151, -73.989365);
+
+            Trip trip = await api.GetTrip(null, empireState, flatIron, unionSquare);
+            Assert.IsTrue(trip.Distance < 2300);
         }
     }
 }
