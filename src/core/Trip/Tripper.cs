@@ -63,7 +63,7 @@ namespace TurtleRoute
             }
 
             trip.Distance = totalDistance;
-            trip.Duration = totalDistance;
+            trip.Duration = totalDuration;
             return trip;
         }
     }

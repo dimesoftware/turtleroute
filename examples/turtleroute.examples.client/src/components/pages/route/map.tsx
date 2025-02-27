@@ -28,7 +28,7 @@ function Map({ route }: { route: Route }) {
         mapRef.current.addControl(new mapboxgl.NavigationControl());
 
         mapRef.current.on('load', () => {
-            console.log("Crikey");
+            
 
             if (!mapRef.current.getSource('route')) {
                 mapRef.current.addSource('route', {

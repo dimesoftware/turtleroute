@@ -11,7 +11,7 @@ interface Coordinate {
     longitude: number;
 }
 
-function Map({ route }: { route: Route }) {
+function Map({ route, coordinates }: { route: Route, coordinates: any[] }) {
     if (route)
         console.log(route);
 
@@ -31,8 +31,6 @@ function Map({ route }: { route: Route }) {
         mapRef.current.addControl(new mapboxgl.NavigationControl());
 
         mapRef.current.on('load', () => {
-            console.log("Crikey");
-
             if (!mapRef.current.getSource('route')) {
                 mapRef.current.addSource('route', {
                     'type': 'geojson',
@@ -82,6 +80,34 @@ function Map({ route }: { route: Route }) {
             }
         });
     }, [route]);
+
+    useEffect(() => {
+        if (!mapRef.current || !coordinates)
+            return;
+
+        for (const [index, coordinate] of coordinates.entries()) {
+            let myLatlng = new mapboxgl.LngLat(coordinate.longitude, coordinate.latitude);
+            let marker = new mapboxgl.Marker()
+                .setLngLat(myLatlng)
+                .setPopup(new mapboxgl.Popup({ offset: 25 }).setText((index + 1).toString()))
+                .addTo(mapRef.current);
+        }
+
+        if (route && route.waypoints[0]) {
+            const first = route.waypoints[0];
+            const last = route.waypoints[route.waypoints.length - 1];
+            mapRef.current.fitBounds([
+                [first.longitude, first.latitude],
+                [last.longitude, last.latitude]
+            ], {
+                padding: 50,
+                maxZoom: 15,
+                duration: 1000
+            });
+
+        }
+
+    }, [coordinates, route]);
 
     return (
         <div id='map-container' ref={mapContainerRef} />

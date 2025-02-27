@@ -44,11 +44,22 @@ app.MapGet("/route", async (string from, string to, IConfiguration config) =>
 .WithName("GetRoute")
 .WithOpenApi();
 
-app.MapPost("/trip", async ([FromBody] IEnumerable<GeoCoordinateDto> coordinates, IConfiguration config) =>
+app.MapPost("/trip", async ([FromBody] IEnumerable<string> addresses, IConfiguration config) =>
 {
     string apiKey = config["token"] ?? throw new InvalidOperationException("API key not configured.");
+
+    List<GeoCoordinate> coordinates = [];
+    Geocoder geocoder = new(apiKey);
+
+    foreach (string address in addresses)
+    {
+        GeoCoordinate? coordinate = await geocoder.GeocodeAsync(address, string.Empty);
+        if (coordinate != null)
+            coordinates.Add(coordinate.Value);
+    }
+
     Tripper tripper = new(apiKey);
-    return await tripper.GetTrip(null, coordinates.Select(x => (GeoCoordinate)x).ToArray());
+    return await tripper.GetTrip(null, coordinates.Select(x => x).ToArray());
 })
 .WithName("GetTrip")
 .WithOpenApi();

@@ -4,7 +4,9 @@ import Map from './map'
 import { useForm, SubmitHandler, useFieldArray } from "react-hook-form"
 
 interface Trip {
-
+    distance: number;
+    duration: number;
+    routes: Route[];
 }
 
 interface Route {
@@ -14,6 +16,8 @@ interface Route {
 interface Coordinate {
     lat: number;
     lng: number;
+    distance: number;
+    duration: number;
 }
 
 type Inputs = {
@@ -24,13 +28,15 @@ type Inputs = {
 function App() {
     const [trip, setTrip] = useState<Trip>();
     const [route, setRoute] = useState<Route>();
+    const [coordinates, setCoordinates] = useState<Coordinate[]>();
     const { register, control, handleSubmit, watch, formState: { errors }, } = useForm<any>()
     const { fields, append, prepend, remove, swap, move, insert } = useFieldArray({ control, name: "stops", });
 
     const onSubmit: SubmitHandler<Inputs> = async (data) => {
         console.log("Submitting request...");
 
-        var body = JSON.stringify((data as any).stops.map((x: any) => ({ Latitude: x.lat, Longitude: x.lng })));
+        const stops = (data as any).stops;
+        var body = JSON.stringify(stops);
         const response = await fetch('/trip', {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -39,55 +45,57 @@ function App() {
 
         if (response.ok) {
             const trip = await response.json();
-
-            console.log("Response from server:");
-            console.log(trip);
             setTrip(trip);
             setRoute({ waypoints: trip.routes.map((x: any) => x.waypoints).flat() });
-
+            setCoordinates(trip.routes.map((x: any) => x.waypoints[0]).flat());
         } else {
             console.log("Oops!");
         }
     }
 
-    const createRandomCoordinate = () => {
-        const nycCoordinates = [
-            { lat: '40.712776', lng: '-74.005974' }, // NYC (General)
-            { lat: '40.730610', lng: '-73.935242' }, // East Village
-            { lat: '40.758896', lng: '-73.985130' }, // Times Square
-            { lat: '40.748817', lng: '-73.985428' }, // Empire State Building
-            { lat: '40.706192', lng: '-74.008874' }, // Wall Street
-            { lat: '40.730824', lng: '-73.997330' }, // Washington Square Park
-            { lat: '40.782865', lng: '-73.965355' }, // Central Park
-            { lat: '40.689247', lng: '-74.044502' }, // Statue of Liberty
-            { lat: '40.752726', lng: '-73.977229' }, // Grand Central Terminal
-            { lat: '40.750504', lng: '-73.993439' }, // Madison Square Garden
-        ];
-
-        return nycCoordinates[Math.floor(Math.random() * nycCoordinates.length)];
-    }
-
     return (
         <div>
+            <p>
+                Total distance: {Math.floor((trip?.distance ?? 0) / 1000) ?? 0} km.
+                <br />
+                Total duration: {Math.floor((trip?.duration ?? 0) / 60) ?? 0} minutes ({Math.floor((trip?.duration ?? 0) / 3600) ?? 0} hours).
+            </p>
 
-            <h2 id="tableLabel">Trip</h2>
+            <center>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Stop</th>
+                            <th>Distance (km)</th>
+                            <th>Duration (min)</th>
+                            <th>Duration (hours)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {(trip?.routes ?? []).map((x, i) => (
+                            <tr key={i}>
+                                <td>{i + 1}</td>
+                                <td>{Math.floor((x?.distance ?? 0) / 1000) ?? 0}</td>
+                                <td>{Math.floor((x?.duration ?? 0) / 60) ?? 0}</td>
+                                <td>{Math.floor((x?.duration ?? 0) / 3600) ?? 0}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </center>
+            <br />
 
             <form onSubmit={handleSubmit(onSubmit)}>
                 {fields.map((field, index) => (
                     <>
-                        <label>Lat:</label>
-                        <input key={field.id} {...register(`stops.${index}.lat`)} />
-
-                        <label>Lng:</label>
-                        <input key={field.id} {...register(`stops.${index}.lng`)} />
-
+                        <input key={field.id} {...register(`stops.${index}`)} style={{ marginBottom: "5px" }} />
                         <br />
                     </>
                 ))
                 }
 
-                <button type="button" onClick={() => append(createRandomCoordinate())}>
-                    Add
+                <button type="button" onClick={() => append("Empire State Building")}>
+                    Add stop
                 </button>
 
                 <br />
@@ -95,8 +103,8 @@ function App() {
                 <input type="submit" />
             </form>
 
-            <Map route={route} />
-        </div>
+            <Map route={route} coordinates={coordinates} />
+        </div >
     );
 }
 
