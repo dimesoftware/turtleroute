@@ -47,10 +47,8 @@ app.MapGet("/route", async (string from, string to, IConfiguration config) =>
 app.MapPost("/trip", async ([FromBody] IEnumerable<GeoCoordinateDto> coordinates, IConfiguration config) =>
 {
     string apiKey = config["token"] ?? throw new InvalidOperationException("API key not configured.");
-    Geocoder geocoder = new(apiKey);
-
-    Router router = new(apiKey);
-    return await router.GetTrip(null, coordinates.Select(x => (GeoCoordinate)x).ToArray());
+    Tripper tripper = new(apiKey);
+    return await tripper.GetTrip(null, coordinates.Select(x => (GeoCoordinate)x).ToArray());
 })
 .WithName("GetTrip")
 .WithOpenApi();
@@ -58,12 +56,3 @@ app.MapPost("/trip", async ([FromBody] IEnumerable<GeoCoordinateDto> coordinates
 app.MapFallbackToFile("/index.html");
 
 app.Run();
-
-public class GeoCoordinateDto
-{
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
-
-    public static implicit operator GeoCoordinate(GeoCoordinateDto dto)
-        => new(dto.Latitude, dto.Longitude);
-}

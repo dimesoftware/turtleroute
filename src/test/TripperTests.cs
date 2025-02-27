@@ -5,7 +5,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace TurtleRoute.Tests
 {
     [TestClass]
-    public class RouterTests
+    public class TripperTests
     {
         private string _token;
 
@@ -33,18 +33,16 @@ namespace TurtleRoute.Tests
         }
 
         [TestMethod]
-        public async Task Router_Directions_ShouldGetDrivingDirections()
+        public async Task Tripper_Trip_ShouldGetDrivingDirections()
         {
-            Router api = new(_token);
+            Tripper api = new(_token);
 
-            // Empire State Building
-            GeoCoordinate start = new(40.748515, -73.9848141);
+            GeoCoordinate empireState = new(40.748515, -73.9848141);
+            GeoCoordinate flatIron = new(40.741443, -73.989464);
+            GeoCoordinate unionSquare = new(40.736151, -73.989365);
 
-            // Flatiron building
-            GeoCoordinate end = new(40.741443, -73.989464);
-
-            Route route = await api.GetRouteAsync(start, end);
-            Assert.IsTrue(route.Distance < 1500);
+            Trip trip = await api.GetTrip(null, empireState, flatIron, unionSquare);
+            Assert.IsTrue(trip.Distance < 2300);
         }
     }
 }
