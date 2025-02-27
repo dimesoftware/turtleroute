@@ -25,24 +25,19 @@ namespace TurtleRoute
         {
             Route[,] matrix = await GetRouteMatrix(coordinates);
 
-            List<Trip> trips = [];
-            for (int i = 0; i < matrix.Length; i++)
-            {
-                if (i == 0)
-                    continue;
+            int size = matrix.GetLength(0); // Number of locations
+            List<Trip> trips = new();
 
+            for (int i = 1; i < size; i++) // Start from 1 to form trips from previous nodes
+            {
                 int duration = 0;
                 int distance = 0;
 
-                int previousTrip = 1;
-                do
+                for (int previousTrip = 0; previousTrip < i; previousTrip++)
                 {
-                    duration += matrix[previousTrip - 1, previousTrip].Duration;
-                    distance += matrix[previousTrip - 1, previousTrip].Distance;
-
-                    previousTrip++;
+                    duration += matrix[previousTrip, previousTrip + 1].Duration;
+                    distance += matrix[previousTrip, previousTrip + 1].Distance;
                 }
-                while (previousTrip <= i);
 
                 trips.Add(new Trip()
                 {
@@ -54,14 +49,17 @@ namespace TurtleRoute
             return trips;
         }
 
+
         public async Task<Route[,]> GetRouteMatrix(params GeoCoordinate[] coordinates)
         {
             AzureKeyCredential credential = new(Token);
             MapsRoutingClient client = new(credential);
 
-            RouteMatrixQuery query = new();
-            query.Origins = coordinates.ToList().Select(x => new GeoPosition(x.Longitude, x.Latitude)).ToList(); ;
-            query.Destinations = coordinates.ToList().Select(x => new GeoPosition(x.Longitude, x.Latitude)).ToList();
+            RouteMatrixQuery query = new()
+            {
+                Origins = coordinates.Select(x => new GeoPosition(x.Longitude, x.Latitude)).ToList(),
+                Destinations = coordinates.Select(x => new GeoPosition(x.Longitude, x.Latitude)).ToList()
+            };
 
             RouteMatrixOptions options = new(query)
             {
@@ -71,44 +69,27 @@ namespace TurtleRoute
             options.Avoid.Add(RouteAvoidType.Ferries);
             options.Avoid.Add(RouteAvoidType.UnpavedRoads);
 
-            Trip trip = new();
             Response<RouteMatrixResult> result = await client.GetImmediateRouteMatrixAsync(options);
 
-            List<Route> routes = [];
-            foreach (IList<RouteMatrix> routeResult in result.Value.Matrix)
+            int originCount = query.Origins.Count;
+            int destinationCount = query.Destinations.Count;
+            Route[,] routeMatrix = new Route[originCount, destinationCount];
+
+            for (int i = 0; i < originCount; i++)
             {
-                foreach (RouteMatrix route in routeResult)
+                for (int j = 0; j < destinationCount; j++)
                 {
-                    routes.Add(new Route()
+                    var route = result.Value.Matrix[i][j];
+                    routeMatrix[i, j] = new Route()
                     {
                         Distance = route.Summary.LengthInMeters ?? 0,
                         Duration = route.Summary.TravelTimeInSeconds ?? 0
-                    });
+                    };
                 }
             }
 
-            return ToMatrix(routes.ToArray(), routes.Count());
+            return routeMatrix;
         }
 
-        private static T[,] ToMatrix<T>(T[] array, int n)
-        {
-            if (n <= 0)
-                throw new ArgumentException("Array N dimension cannot be less or equals zero", nameof(n));
-            if (array == null)
-                throw new ArgumentNullException(nameof(array), "Array cannot be null");
-            if (array.Length == 0)
-                throw new ArgumentException("Array cannot be empty", nameof(array));
-
-            int m = array.Length % n == 0 ? array.Length / n : array.Length / n + 1;
-            var newArr = new T[m, n];
-            for (int i = 0; i < array.Length; i++)
-            {
-                int k = i / n;
-                int l = i % n;
-                newArr[k, l] = array[i];
-            }
-
-            return newArr;
-        }
     }
 }
