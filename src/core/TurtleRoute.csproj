@@ -8,7 +8,7 @@
 		<Description>Route and travel time calculator</Description>
 		<PackageProjectUrl>https://github.com/dimesoftware/maps</PackageProjectUrl>
 		<PackageIconUrl>https://cdn.dime-software.com/dime-software/logo-shape.png</PackageIconUrl>
-		<Version>0.7.0</Version>
+		<Version>0.8.0</Version>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<IncludeSymbols>true</IncludeSymbols>
 		<NeutralLanguage>en</NeutralLanguage>

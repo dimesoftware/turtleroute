@@ -42,7 +42,7 @@ namespace TurtleRoute
 
             Trip trip = new();
             Response<RouteDirectionsBatchResult> result = await client.GetDirectionsImmediateBatchAsync(queries);
-
+            
             int totalDistance = 0;
             int totalDuration = 0;
 
