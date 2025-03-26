@@ -9,5 +9,7 @@ namespace TurtleRoute
         public int Distance { get; set; }
 
         public List<Route> Routes { get; set; } = [];
+
+        public string Summary { get; set; }
     }
 }

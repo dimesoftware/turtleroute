@@ -1,4 +1,6 @@
-# TurtleRoute Examples
+![](assets/screen.png)
+
+# Example
 
 ## Mapbox config
 
@@ -9,6 +11,8 @@
 
 In the appsettings.json file, paste the Azure Maps key in the token config.
 
+```json
 {
   "token": "",
 }
+```

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Azure;
 using Azure.Core.GeoJson;
@@ -7,6 +9,23 @@ using Azure.Maps.Search.Models;
 
 namespace TurtleRoute
 {
+    public class ConfidenceComparer : IComparer<ConfidenceEnum?>
+    {
+        public int Compare(ConfidenceEnum? x, ConfidenceEnum? y)
+        {
+            if (x == ConfidenceEnum.High && y != ConfidenceEnum.High)
+                return -1;
+
+            if (x == ConfidenceEnum.Medium && y == ConfidenceEnum.Low)
+                return -1;
+
+            if (x == y)
+                return 0;
+
+            return 1;
+        }
+    }
+
     public class Geocoder
     {
         public Geocoder(string token)
@@ -37,7 +56,10 @@ namespace TurtleRoute
 
             Response<GeocodingResponse> searchResult = await client.GetGeocodingAsync(address + ", " + countryFilter);
 
-            GeoPosition resp = searchResult.Value.Features[0].Geometry.Coordinates;
+            if (searchResult.Value.Features.Count == 0)
+                return new();
+
+            GeoPosition resp = searchResult.Value.Features.OrderBy(x => x.Properties.Confidence, new ConfidenceComparer()).ElementAt(0).Geometry.Coordinates;
             return new(resp.Latitude, resp.Longitude);
         }
     }

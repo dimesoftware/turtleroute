@@ -42,12 +42,18 @@ namespace TurtleRoute
 
             Trip trip = new();
             Response<RouteDirectionsBatchResult> result = await client.GetDirectionsImmediateBatchAsync(queries);
-            
+
             int totalDistance = 0;
             int totalDuration = 0;
 
             foreach (RouteDirectionsBatchItemResponse batchResponse in result.Value.Results)
             {
+                if (!string.IsNullOrEmpty(batchResponse.ResponseError?.Code))
+                {
+                    trip.Summary = batchResponse.ResponseError.Message;
+                    return trip;
+                }
+
                 foreach (RouteData route in batchResponse.Routes)
                 {
                     totalDistance += route.Summary.LengthInMeters ?? 0;
