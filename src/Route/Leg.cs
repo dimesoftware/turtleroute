@@ -2,14 +2,12 @@
 
 namespace TurtleRoute
 {
-    public class Trip
+    public class Leg
     {
         public int Duration { get; set; }
 
         public int Distance { get; set; }
 
-        public List<Route> Routes { get; set; } = [];
-
-        public string Summary { get; set; }
+        public IEnumerable<GeoCoordinate> Waypoints { get; set; } = [];
     }
 }

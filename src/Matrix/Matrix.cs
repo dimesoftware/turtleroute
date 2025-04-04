@@ -21,12 +21,12 @@ namespace TurtleRoute
 
         private string Token { get; }
 
-        public async Task<IEnumerable<Trip>> GetTrip(params GeoCoordinate[] coordinates)
+        public async Task<IEnumerable<Route>> GetTrip(params GeoCoordinate[] coordinates)
         {
             Route[,] matrix = await GetRouteMatrix(coordinates);
 
             int size = matrix.GetLength(0); // Number of locations
-            List<Trip> trips = new();
+            List<Route> trips = [];
 
             for (int i = 1; i < size; i++) // Start from 1 to form trips from previous nodes
             {
@@ -39,7 +39,7 @@ namespace TurtleRoute
                     distance += matrix[previousTrip, previousTrip + 1].Distance;
                 }
 
-                trips.Add(new Trip()
+                trips.Add(new Route()
                 {
                     Duration = duration,
                     Distance = distance,
@@ -48,7 +48,6 @@ namespace TurtleRoute
 
             return trips;
         }
-
 
         public async Task<Route[,]> GetRouteMatrix(params GeoCoordinate[] coordinates)
         {
@@ -90,6 +89,5 @@ namespace TurtleRoute
 
             return routeMatrix;
         }
-
     }
 }

@@ -1,3 +1,4 @@
+using Azure.Maps.Routing;
 using Microsoft.AspNetCore.Mvc;
 using TurtleRoute;
 
@@ -58,8 +59,8 @@ app.MapPost("/trip", async ([FromBody] IEnumerable<string> addresses, IConfigura
             coordinates.Add(coordinate.Value);
     }
 
-    Tripper tripper = new(apiKey);
-    return await tripper.GetTrip(null, coordinates.Select(x => x).ToArray());
+    Router tripper = new(apiKey);
+    return await tripper.GetRouteAsync(new() { ComputeBestWaypointOrder = true, RouteType = RouteType.Shortest }, coordinates.Select(x => x).ToArray());
 })
 .WithName("GetTrip")
 .WithOpenApi();

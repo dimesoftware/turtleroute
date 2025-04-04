@@ -8,6 +8,10 @@ namespace TurtleRoute
 
         public int Distance { get; set; }
 
-        public IEnumerable<GeoCoordinate> Waypoints { get; set; } = [];
+        public List<Leg> Legs { get; set; } = [];
+
+        public string Summary { get; set; }
+
+        public List<RouteRevision> Revisions { get; set; }
     }
 }

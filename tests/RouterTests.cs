@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Azure.Maps.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -37,14 +38,16 @@ namespace TurtleRoute.Tests
         {
             Router api = new(_token);
 
-            // Empire State Building
-            GeoCoordinate start = new(40.748515, -73.9848141);
+            GeoCoordinate barcelona = new(41.404090, 2.174984);
+            GeoCoordinate madrid = new(40.415415, -3.707295);
+            GeoCoordinate segovia = new(40.948679, -4.119111);
+            GeoCoordinate valencia = new(39.473815, -0.375563);
+            GeoCoordinate pamplona = new(42.812803, -1.643674);
 
-            // Flatiron building
-            GeoCoordinate end = new(40.741443, -73.989464);
+            Route route = await api.GetRouteAsync(new RouteDirectionOptions() { ComputeBestWaypointOrder = true, RouteType = RouteType.Shortest }, barcelona, madrid, segovia, valencia, pamplona);
 
-            Route route = await api.GetRouteAsync(start, end);
-            Assert.IsTrue(route.Distance < 1500);
+            int distance = 1200 * 1000;
+            Assert.IsTrue(route.Distance < distance);
         }
     }
 }

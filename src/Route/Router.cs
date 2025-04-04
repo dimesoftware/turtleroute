@@ -37,15 +37,30 @@ namespace TurtleRoute
 
             Response<RouteDirections> result = await client.GetDirectionsAsync(query);
 
-            if (!(result.Value?.Routes ?? []).Any())
-                return new Route();
+            int totalDistance = 0;
+            int totalDuration = 0;
+            Route journey = new();
 
-            return new Route()
+            result.Value.OptimizedWaypoints.Select(x => x);
+
+            foreach (RouteData route in result.Value.Routes)
             {
-                Distance = result.Value.Routes[0].Summary.LengthInMeters ?? 0,
-                Duration = result.Value.Routes[0].Summary.TravelTimeInSeconds ?? 0,
-                Waypoints = result.Value.Routes[0].Legs.SelectMany(x => x.Points).Select(x => new GeoCoordinate(x.Latitude, x.Longitude))
-            };
+                totalDistance += route.Summary.LengthInMeters ?? 0;
+                totalDuration += route.Summary.TravelTimeInSeconds ?? 0;
+
+                journey.Legs.Add(new Leg()
+                {
+                    Distance = route.Summary.LengthInMeters ?? 0,
+                    Duration = route.Summary.TravelTimeInSeconds ?? 0,
+                    Waypoints = route.Legs.SelectMany(x => x.Points).Select(x => new GeoCoordinate(x.Latitude, x.Longitude))
+                });
+            }
+
+            journey.Distance = totalDistance;
+            journey.Duration = totalDuration;
+
+            journey.Revisions = result.Value.OptimizedWaypoints.Select(x => new RouteRevision(x.ProvidedIndex.GetValueOrDefault(), x.OptimizedIndex.GetValueOrDefault())).ToList();
+            return journey;
         }
 
         public Task<Route> GetRouteAsync(params GeoCoordinate[] coordinates)

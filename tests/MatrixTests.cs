@@ -43,7 +43,7 @@ namespace TurtleRoute.Tests
             GeoCoordinate flatIron = new(40.741443, -73.989464);
             GeoCoordinate unionSquare = new(40.736151, -73.989365);
 
-            IEnumerable<Trip> trip = await api.GetTrip(empireState, flatIron, unionSquare);
+            IEnumerable<Route> trip = await api.GetTrip(empireState, flatIron, unionSquare);
 
             int expectedDistance1 = 1300; // Approximate expected distance for Empire State → Flatiron
             int expectedDistance2 = 2200; // Approximate expected distance for Empire State → Union Square

@@ -46,8 +46,8 @@ function App() {
         if (response.ok) {
             const trip = await response.json();
             setTrip(trip);
-            setRoute({ waypoints: trip.routes.map((x: any) => x.waypoints).flat() });
-            setCoordinates(trip.routes.map((x: any) => x.waypoints[0]).flat());
+            setRoute({ waypoints: trip.legs.map((x: any) => x.waypoints).flat() });
+            setCoordinates(trip.legs.map((x: any) => x.waypoints[0]).flat());
         } else {
             console.log("Oops!");
         }
