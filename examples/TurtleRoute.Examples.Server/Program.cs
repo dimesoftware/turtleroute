@@ -65,6 +65,16 @@ app.MapPost("/trip", async ([FromBody] IEnumerable<string> addresses, IConfigura
 .WithName("GetTrip")
 .WithOpenApi();
 
+app.MapPost("/sample", async ([FromBody] IEnumerable<Coords> coordinates, IConfiguration config) =>
+{
+    string apiKey = config["token"] ?? throw new InvalidOperationException("API key not configured.");
+
+    Router tripper = new(apiKey);
+    return await tripper.GetRouteAsync(new() { ComputeBestWaypointOrder = true, RouteType = RouteType.Shortest }, coordinates.Select(x => x.ToCoordinate()).ToArray());
+})
+.WithName("GetSample")
+.WithOpenApi();
+
 app.MapFallbackToFile("/index.html");
 
 app.Run();

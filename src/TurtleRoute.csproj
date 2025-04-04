@@ -16,14 +16,17 @@
 		<RepositoryUrl>https://github.com/dimesoftware/maps</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 	</PropertyGroup>
+
+	<ItemGroup>
+	  <Compile Remove="Journey\**" />
+	  <EmbeddedResource Remove="Journey\**" />
+	  <None Remove="Journey\**" />
+	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Azure.Maps.Routing" Version="1.0.0-beta.4" />
 		<PackageReference Include="Azure.Maps.Search" Version="2.0.0-beta.4" />
 	</ItemGroup>
 	<ItemGroup>		
 		<None Include="README.md" Pack="true" PackagePath="\" />		
-	</ItemGroup>
-	<ItemGroup>
-	  <Folder Include="Journey\" />
 	</ItemGroup>
 </Project>

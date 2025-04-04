@@ -58,6 +58,10 @@ export default defineConfig({
             '^/trip': {
                 target,
                 secure: false
+            },
+            '^/sample': {
+                target,
+                secure: false
             }
         },
         port: 59306,

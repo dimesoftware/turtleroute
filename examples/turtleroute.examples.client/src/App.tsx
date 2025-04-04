@@ -1,11 +1,11 @@
 import './App.css';
-import Trip from './components/pages/trip';
+import Route from './components/pages/route';
 
 function App() {
     return (
         <div>
             <h1 id="tableLabel">TurtleRoute</h1>
-            <Trip />
+            <Route />
         </div>
     );
 }
