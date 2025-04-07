@@ -37,29 +37,27 @@ namespace TurtleRoute
 
             Response<RouteDirections> result = await client.GetDirectionsAsync(query);
 
+            Route journey = new();
             int totalDistance = 0;
             int totalDuration = 0;
-            Route journey = new();
-
-            result.Value.OptimizedWaypoints.Select(x => x);
 
             foreach (RouteData route in result.Value.Routes)
             {
                 totalDistance += route.Summary.LengthInMeters ?? 0;
                 totalDuration += route.Summary.TravelTimeInSeconds ?? 0;
 
-                journey.Legs.Add(new Leg()
+                journey.Legs.AddRange(route.Legs.Select(leg => new Leg()
                 {
-                    Distance = route.Summary.LengthInMeters ?? 0,
-                    Duration = route.Summary.TravelTimeInSeconds ?? 0,
-                    Waypoints = route.Legs.SelectMany(x => x.Points).Select(x => new GeoCoordinate(x.Latitude, x.Longitude))
-                });
+                    Distance = leg.Summary.LengthInMeters ?? 0,
+                    Duration = leg.Summary.TravelTimeInSeconds ?? 0,
+                    Waypoints = leg.Points.Select(x => new GeoCoordinate(x.Latitude, x.Longitude))
+                }));
             }
 
             journey.Distance = totalDistance;
             journey.Duration = totalDuration;
-
             journey.Revisions = result.Value.OptimizedWaypoints.Select(x => new RouteRevision(x.ProvidedIndex.GetValueOrDefault(), x.OptimizedIndex.GetValueOrDefault())).ToList();
+
             return journey;
         }
 
