@@ -56,8 +56,8 @@ namespace TurtleRoute
 
             RouteMatrixQuery query = new()
             {
-                Origins = coordinates.Select(x => new GeoPosition(x.Longitude, x.Latitude)).ToList(),
-                Destinations = coordinates.Select(x => new GeoPosition(x.Longitude, x.Latitude)).ToList()
+                Origins = [.. coordinates.Select(x => new GeoPosition(x.Longitude, x.Latitude))],
+                Destinations = [.. coordinates.Select(x => new GeoPosition(x.Longitude, x.Latitude))]
             };
 
             RouteMatrixOptions options = new(query)

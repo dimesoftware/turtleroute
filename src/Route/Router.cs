@@ -32,7 +32,7 @@ namespace TurtleRoute
                 UseTrafficData = true,
             };
 
-            List<GeoPosition> stops = coordinates.ToList().Select(x => new GeoPosition(x.Longitude, x.Latitude)).ToList();
+            List<GeoPosition> stops = [.. coordinates.ToList().Select(x => new GeoPosition(x.Longitude, x.Latitude))];
             RouteDirectionQuery query = new(stops, opts);
 
             Response<RouteDirections> result = await client.GetDirectionsAsync(query);
@@ -56,7 +56,7 @@ namespace TurtleRoute
 
             journey.Distance = totalDistance;
             journey.Duration = totalDuration;
-            journey.Revisions = result.Value.OptimizedWaypoints.Select(x => new RouteRevision(x.ProvidedIndex.GetValueOrDefault(), x.OptimizedIndex.GetValueOrDefault())).ToList();
+            journey.Revisions = [.. result.Value.OptimizedWaypoints.Select(x => new RouteRevision(x.ProvidedIndex.GetValueOrDefault(), x.OptimizedIndex.GetValueOrDefault()))];
 
             return journey;
         }

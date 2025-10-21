@@ -49,5 +49,18 @@ namespace TurtleRoute.Tests
             int distance = 1200 * 1000;
             Assert.IsTrue(route.Distance < distance);
         }
+
+        [TestMethod]
+        public async Task Router_Optimize()
+        {
+            Router api = new(_token);
+
+            GeoCoordinate stop1 = new(50.83612892540386, 4.004047490828118);
+            GeoCoordinate stop2 = new(50.9651, 5.5006);
+            GeoCoordinate stop3 = new(51.075029, 3.071611);
+            Route route = await api.GetRouteAsync(new RouteDirectionOptions() { ComputeBestWaypointOrder = true, RouteType = RouteType.Shortest }, stop1, stop2, stop3);
+
+            Assert.AreEqual(2, route.Legs.Count);
+        }
     }
 }
