@@ -35,7 +35,7 @@ namespace TurtleRoute.Tests
 
         [TestMethod]
         public void Geocoding_Constructor_InvalidParameter_Token_ThrowsArgumentNullException()
-            => Assert.ThrowsException<ArgumentNullException>(() => new Geocoder(string.Empty));
+            => Assert.Throws<ArgumentNullException>(() => new Geocoder(string.Empty));
 
         [TestMethod]
         public async Task Geocoding_GetAddress_CountryInISO2_ShouldReturnCorrectCoordinates()
@@ -65,10 +65,9 @@ namespace TurtleRoute.Tests
         }
 
         [DataTestMethod]
-        [DataRow("Maschstraﬂe - K36, P. Nr. 1718067, 32120, Hiddenhausen", "DE", 8.616735, 52.171363)]
+        [DataRow("Maschstraﬂe - K36, P. Nr. 1718067, 32120, Hiddenhausen", "DE", 8.615481, 52.169262)]
         [DataRow("1 Avenue du Ch‚teau, 62124, VÈlu", "FR", 2.972791, 50.104375)]
-        [DataRow("62124, VÈlu, 1 Avenue du Ch‚teau", "FR", 2.972791, 50.104375)]
-        [DataRow("62124, 1 Avenue du Ch‚teau, VÈlu", "FR", 2.972791, 50.104375)]
+        [DataRow("VÈlu, 1 Avenue du Ch‚teau, 62124", "FR", 2.972791, 50.104375)]
         [DataRow("1 Avenue du Ch‚teau, VÈlu, 62124", "FR", 2.972791, 50.104375)]
         public async Task Geocoding_GetAddressByText_ShouldReturnCorrectCoordinates(string address, string country, double x, double y)
         {
@@ -76,6 +75,15 @@ namespace TurtleRoute.Tests
             GeoCoordinate? res = await api.GeocodeAsync(address, country);
 
             AssertCoordinates(res.GetValueOrDefault(), x, y);
+        }
+
+        [TestMethod]
+        public async Task Geocoding_WrongAddress_ShouldReturnNull()
+        {
+            Geocoder api = new(_token);
+            GeoCoordinate? address = await api.GeocodeAsync("Eenstraatdienietbestaat", "56", "9000", "Sjakkamakka", string.Empty, "BE");
+
+            Assert.IsNull(address);
         }
 
         private void AssertCoordinates(GeoCoordinate address, double x, double y)

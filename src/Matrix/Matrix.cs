@@ -78,7 +78,7 @@ namespace TurtleRoute
             {
                 for (int j = 0; j < destinationCount; j++)
                 {
-                    var route = result.Value.Matrix[i][j];
+                    RouteMatrix route = result.Value.Matrix[i][j];
                     routeMatrix[i, j] = new Route()
                     {
                         Distance = route.Summary.LengthInMeters ?? 0,

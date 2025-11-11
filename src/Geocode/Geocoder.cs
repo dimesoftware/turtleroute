@@ -9,58 +9,78 @@ using Azure.Maps.Search.Models;
 
 namespace TurtleRoute
 {
-    public class ConfidenceComparer : IComparer<ConfidenceEnum?>
-    {
-        public int Compare(ConfidenceEnum? x, ConfidenceEnum? y)
-        {
-            if (x == ConfidenceEnum.High && y != ConfidenceEnum.High)
-                return -1;
-
-            if (x == ConfidenceEnum.Medium && y == ConfidenceEnum.Low)
-                return -1;
-
-            if (x == y)
-                return 0;
-
-            return 1;
-        }
-    }
-
     public class Geocoder
     {
+        private readonly MapsSearchClient _client;
+
         public Geocoder(string token)
         {
-            if (string.IsNullOrEmpty(token))
+            if (string.IsNullOrWhiteSpace(token))
                 throw new ArgumentNullException(nameof(token));
 
-            Token = token;
+            _client = new MapsSearchClient(new AzureKeyCredential(token));
         }
 
-        private string Token { get; }
-
+        /// <summary>
+        /// Geocode structured address parts. Returns null when no reliable result.
+        /// </summary>
         public async Task<GeoCoordinate?> GeocodeAsync(string street, string streetNo, string zipCode, string city, string state, string country)
         {
-            AzureKeyCredential credential = new(Token);
-            MapsSearchClient client = new(credential);
+            if (string.IsNullOrWhiteSpace(street) && string.IsNullOrWhiteSpace(city) && string.IsNullOrWhiteSpace(country))
+                throw new ArgumentException("Provide at least street, city or country.");
 
-            Response<GeocodingResponse> searchResult = await client.GetGeocodingAsync($"{street} {streetNo}, {zipCode} {city}, {state}, {country}");
+            string query = BuildAddress(street, streetNo, zipCode, city, state, country);
 
-            GeoPosition resp = searchResult.Value.Features[0].Geometry.Coordinates;
-            return new(resp.Latitude, resp.Longitude);
+            Response<GeocodingResponse> searchResult = await _client.GetGeocodingAsync(query);
+
+            IReadOnlyList<FeaturesItem> features = searchResult?.Value?.Features;
+            if (features == null || features.Count == 0)
+                return null;
+
+            FeaturesItem best = features[0];
+            if (best?.Properties?.Confidence == ConfidenceEnum.Low)
+                return null;
+
+            GeoPosition? coords = best?.Geometry?.Coordinates;
+            if (!coords.HasValue)
+                return null;
+
+            // Azure.Core.GeoJson.GeoPosition exposes coordinate values by index: [0]=longitude, [1]=latitude.
+            double longitude = coords.Value[0];
+            double latitude = coords.Value[1];
+
+            return new GeoCoordinate(latitude, longitude);
         }
 
+        /// <summary>
+        /// Geocode freeform address with optional country filter. Returns null when no reliable result.
+        /// </summary>
         public async Task<GeoCoordinate?> GeocodeAsync(string address, string countryFilter)
         {
-            AzureKeyCredential credential = new(Token);
-            MapsSearchClient client = new(credential);
+            if (string.IsNullOrWhiteSpace(address))
+                throw new ArgumentNullException(nameof(address));
 
-            Response<GeocodingResponse> searchResult = await client.GetGeocodingAsync(address + ", " + countryFilter);
+            string query = string.IsNullOrWhiteSpace(countryFilter) ? address : $"{address}, {countryFilter}";
 
-            if (searchResult.Value.Features.Count == 0)
-                return new();
+            Response<GeocodingResponse> searchResult = await _client.GetGeocodingAsync(query);
 
-            GeoPosition resp = searchResult.Value.Features.OrderBy(x => x.Properties.Confidence, new ConfidenceComparer()).ElementAt(0).Geometry.Coordinates;
-            return new(resp.Latitude, resp.Longitude);
+            IReadOnlyList<FeaturesItem> features = searchResult?.Value?.Features;
+            if (features == null || features.Count == 0)
+                return null;
+
+            FeaturesItem best = features.OrderBy(f => f?.Properties?.Confidence, new ConfidenceComparer()).FirstOrDefault();
+
+            GeoPosition? coords = best?.Geometry?.Coordinates;
+            if (!coords.HasValue)
+                return null;
+
+            double longitude = coords.Value[0];
+            double latitude = coords.Value[1];
+
+            return new GeoCoordinate(latitude, longitude);
         }
+
+        private static string BuildAddress(params string[] parts)
+            => string.Join(", ", parts.Where(p => !string.IsNullOrWhiteSpace(p)));
     }
 }

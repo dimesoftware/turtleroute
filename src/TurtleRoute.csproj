@@ -8,12 +8,12 @@
 		<Description>Route and travel time calculator</Description>
 		<PackageProjectUrl>https://github.com/dimesoftware/maps</PackageProjectUrl>
 		<PackageIconUrl>https://cdn.dime-software.com/dime-software/logo-shape.png</PackageIconUrl>
-		<Version>0.12.0</Version>
+		<Version>0.13.0</Version>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<IncludeSymbols>true</IncludeSymbols>
 		<NeutralLanguage>en</NeutralLanguage>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
-		<RepositoryUrl>https://github.com/dimesoftware/maps</RepositoryUrl>
+		<RepositoryUrl>https://github.com/dimesoftware/turtleroute</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 	</PropertyGroup>
 
