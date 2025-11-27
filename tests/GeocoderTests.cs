@@ -78,10 +78,19 @@ namespace TurtleRoute.Tests
         }
 
         [TestMethod]
-        public async Task Geocoding_WrongAddress_ShouldReturnNull()
+        public async Task GeocodeAsync_WrongAddress_ShouldReturnNull()
         {
             Geocoder api = new(_token);
             GeoCoordinate? address = await api.GeocodeAsync("Eenstraatdienietbestaat", "56", "9000", "Sjakkamakka", string.Empty, "BE");
+
+            Assert.IsNull(address);
+        }
+
+        [TestMethod]
+        public async Task GeocodeAsyncRaw_WrongAddress_ShouldReturnNull()
+        {
+            Geocoder api = new(_token);
+            GeoCoordinate? address = await api.GeocodeAsync("Eenstraatdienietbestaat 56, , 9000, Sjakkamakka", "GB");
 
             Assert.IsNull(address);
         }

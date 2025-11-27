@@ -70,6 +70,9 @@ namespace TurtleRoute
 
             FeaturesItem best = features.OrderBy(f => f?.Properties?.Confidence, new ConfidenceComparer()).FirstOrDefault();
 
+            if (best?.Properties?.Confidence == ConfidenceEnum.Low)
+                return null;
+
             GeoPosition? coords = best?.Geometry?.Coordinates;
             if (!coords.HasValue)
                 return null;
