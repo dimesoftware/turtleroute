@@ -64,7 +64,7 @@ namespace TurtleRoute.Tests
             AssertCoordinates(address.GetValueOrDefault(), 4.359231, 51.219501);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow("Maschstraﬂe - K36, P. Nr. 1718067, 32120, Hiddenhausen", "DE", 8.615481, 52.169262)]
         [DataRow("1 Avenue du Ch‚teau, 62124, VÈlu", "FR", 2.972791, 50.104375)]
         [DataRow("VÈlu, 1 Avenue du Ch‚teau, 62124", "FR", 2.972791, 50.104375)]
@@ -78,10 +78,12 @@ namespace TurtleRoute.Tests
         }
 
         [TestMethod]
-        public async Task GeocodeAsync_WrongAddress_ShouldReturnNull()
+        [DataRow("Eenstraatdienietbestaat", "56", "9000", "Sjakkamakka", "BE")]
+        [DataRow("Heilig Sakramentsraat", "26", "10008", "Zakkemakke", "DE")]
+        public async Task GeocodeAsync_WrongAddress_ShouldReturnNull(string street, string streetNo, string zipCode, string city, string country)
         {
             Geocoder api = new(_token);
-            GeoCoordinate? address = await api.GeocodeAsync("Eenstraatdienietbestaat", "56", "9000", "Sjakkamakka", string.Empty, "BE");
+            GeoCoordinate? address = await api.GeocodeAsync(street, streetNo, zipCode, city, string.Empty, country);
 
             Assert.IsNull(address);
         }

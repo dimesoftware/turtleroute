@@ -34,6 +34,7 @@ namespace TurtleRoute.Tests
                 }
             }
         }
+
         [TestMethod]
         public async Task Matrix_Trip_ShouldGetDrivingDirections()
         {
@@ -56,6 +57,5 @@ namespace TurtleRoute.Tests
             Assert.IsTrue(Math.Abs(trip.ElementAt(1).Distance - expectedDistance2) <= tolerance,
                 $"Distance {trip.ElementAt(1).Distance} is out of range for Trip 2.");
         }
-
     }
 }
