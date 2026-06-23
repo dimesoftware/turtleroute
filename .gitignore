@@ -6,3 +6,6 @@ NuGet.config
 **/*.coverage
 node_modules
 /tests/appsettings.development.json
+
+publish-packages.ps1
+.claude/
