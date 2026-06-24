@@ -34,11 +34,7 @@ namespace TurtleRoute
 
             Response<GeocodingResponse> searchResult = await _client.GetGeocodingAsync(query);
 
-            IReadOnlyList<FeaturesItem> features = searchResult?.Value?.Features;
-            if (features == null || features.Count == 0)
-                return null;
-
-            FeaturesItem best = features[0];
+            FeaturesItem best = SelectBest(searchResult?.Value?.Features);
             if (best?.Properties?.Confidence == ConfidenceEnum.Low)
                 return null;
 
@@ -65,12 +61,7 @@ namespace TurtleRoute
 
             Response<GeocodingResponse> searchResult = await _client.GetGeocodingAsync(query);
 
-            IReadOnlyList<FeaturesItem> features = searchResult?.Value?.Features;
-            if (features == null || features.Count == 0)
-                return null;
-
-            FeaturesItem best = features.OrderBy(f => f?.Properties?.Confidence, new ConfidenceComparer()).FirstOrDefault();
-
+            FeaturesItem best = SelectBest(searchResult?.Value?.Features);
             if (best?.Properties?.Confidence == ConfidenceEnum.Low)
                 return null;
 
@@ -128,7 +119,7 @@ namespace TurtleRoute
             IReadOnlyList<FeaturesItem> features = response.Value?.Features;
             int count = features?.Count ?? 0;
 
-            FeaturesItem best = features != null && features.Count > 0 ? features[0] : null;
+            FeaturesItem best = SelectBest(features);
             string bestConfidence = best?.Properties?.Confidence?.ToString();
 
             GeoCoordinate? bestCoord = null;
@@ -143,6 +134,14 @@ namespace TurtleRoute
                 BestConfidence = bestConfidence,
                 BestCoordinate = bestCoord
             };
+        }
+
+        private static FeaturesItem SelectBest(IReadOnlyList<FeaturesItem> features)
+        {
+            if (features == null || features.Count == 0)
+                return null;
+
+            return features.OrderBy(f => f?.Properties?.Confidence, new ConfidenceComparer()).FirstOrDefault();
         }
 
         private static string BuildAddress(params string[] parts)

@@ -47,7 +47,7 @@ namespace TurtleRoute.Tests
             Route route = await api.GetRouteAsync(new RouteDirectionOptions() { ComputeBestWaypointOrder = true, RouteType = RouteType.Shortest }, barcelona, madrid, segovia, valencia, pamplona);
 
             int distance = 1200 * 1000;
-            Assert.IsTrue(route.Distance < distance);
+            Assert.IsLessThan(distance, route.Distance);
         }
 
         [TestMethod]
@@ -60,7 +60,7 @@ namespace TurtleRoute.Tests
             GeoCoordinate stop3 = new(51.075029, 3.071611);
             Route route = await api.GetRouteAsync(new RouteDirectionOptions() { ComputeBestWaypointOrder = true, RouteType = RouteType.Shortest }, stop1, stop2, stop3);
 
-            Assert.AreEqual(2, route.Legs.Count);
+            Assert.HasCount(2, route.Legs);
         }
     }
 }

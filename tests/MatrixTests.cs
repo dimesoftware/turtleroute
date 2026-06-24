@@ -51,11 +51,11 @@ namespace TurtleRoute.Tests
 
             int tolerance = 300; // Allow a variation of ±300 meters
 
-            Assert.IsTrue(Math.Abs(trip.ElementAt(0).Distance - expectedDistance1) <= tolerance,
-                $"Distance {trip.ElementAt(0).Distance} is out of range for Trip 1.");
+            Assert.IsLessThanOrEqualTo(tolerance,
+Math.Abs(trip.ElementAt(0).Distance - expectedDistance1), $"Distance {trip.ElementAt(0).Distance} is out of range for Trip 1.");
 
-            Assert.IsTrue(Math.Abs(trip.ElementAt(1).Distance - expectedDistance2) <= tolerance,
-                $"Distance {trip.ElementAt(1).Distance} is out of range for Trip 2.");
+            Assert.IsLessThanOrEqualTo(tolerance,
+Math.Abs(trip.ElementAt(1).Distance - expectedDistance2), $"Distance {trip.ElementAt(1).Distance} is out of range for Trip 2.");
         }
     }
 }
