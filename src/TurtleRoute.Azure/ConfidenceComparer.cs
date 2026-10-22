@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Azure.Maps.Search.Models;
 
-namespace TurtleRoute
+namespace TurtleRoute.Azure
 {
     public class ConfidenceComparer : IComparer<ConfidenceEnum?>
     {

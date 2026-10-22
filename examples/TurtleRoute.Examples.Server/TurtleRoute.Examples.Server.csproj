@@ -18,7 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\TurtleRoute.csproj" />
+    <ProjectReference Include="..\..\src\TurtleRoute\TurtleRoute.csproj" />
+    <ProjectReference Include="..\..\src\TurtleRoute.Azure\TurtleRoute.Azure.csproj" />
+    <ProjectReference Include="..\..\src\TurtleRoute.OpenCage\TurtleRoute.OpenCage.csproj" />
     <ProjectReference Include="..\turtleroute.examples.client\turtleroute.examples.client.esproj">
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>

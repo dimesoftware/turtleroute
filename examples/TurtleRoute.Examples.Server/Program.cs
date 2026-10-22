@@ -1,4 +1,3 @@
-using Azure.Maps.Routing;
 using Microsoft.AspNetCore.Mvc;
 using TurtleRoute;
 
@@ -8,6 +7,18 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Geocoders are tried in registration order: OpenCage first (when configured), Azure Maps as the fallback.
+TurtleRouteBuilder turtleRoute = builder.Services.AddTurtleRoute();
+
+string? openCageToken = builder.Configuration["openCageToken"];
+if (!string.IsNullOrWhiteSpace(openCageToken))
+    turtleRoute.AddOpenCageGeocoder(o => o.ApiKey = openCageToken);
+
+string azureToken = builder.Configuration["token"] ?? throw new InvalidOperationException("API key not configured.");
+turtleRoute
+    .AddAzureMapsGeocoder(o => o.ApiKey = azureToken)
+    .UseAzureMapsRouting(o => o.ApiKey = azureToken);
 
 var app = builder.Build();
 
@@ -23,54 +34,45 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapGet("/coordinates", async (string search, IConfiguration config) =>
+app.MapGet("/coordinates", async (string search, IGeocoder geocoder) =>
 {
-    string apiKey = config["token"] ?? throw new InvalidOperationException("API key not configured.");
-    Geocoder geocoder = new(apiKey);
-    return await geocoder.GeocodeAsync(search, string.Empty);
+    GeocodeResult? result = await geocoder.GeocodeAsync(search, string.Empty);
+    return result?.Coordinate;
 })
 .WithName("GetCoordinates")
 .WithOpenApi();
 
-app.MapGet("/route", async (string from, string to, IConfiguration config) =>
+app.MapGet("/route", async (string from, string to, IGeocoder geocoder, IRoutePlanner router) =>
 {
-    string apiKey = config["token"] ?? throw new InvalidOperationException("API key not configured.");
-    Geocoder geocoder = new(apiKey);
-    GeoCoordinate? fromCoordinates = await geocoder.GeocodeAsync(from, string.Empty);
-    GeoCoordinate? toCoordinates = await geocoder.GeocodeAsync(to, string.Empty);
+    GeocodeResult? fromResult = await geocoder.GeocodeAsync(from, string.Empty);
+    GeocodeResult? toResult = await geocoder.GeocodeAsync(to, string.Empty);
+    if (fromResult == null || toResult == null)
+        return Results.NotFound();
 
-    Router router = new(apiKey);
-    return await router.GetRouteAsync(fromCoordinates.Value, toCoordinates.Value);
+    return Results.Ok(await router.GetRouteAsync(fromResult.Coordinate, toResult.Coordinate));
 })
 .WithName("GetRoute")
 .WithOpenApi();
 
-app.MapPost("/trip", async ([FromBody] IEnumerable<string> addresses, IConfiguration config) =>
+app.MapPost("/trip", async ([FromBody] IEnumerable<string> addresses, IGeocoder geocoder, IRoutePlanner router) =>
 {
-    string apiKey = config["token"] ?? throw new InvalidOperationException("API key not configured.");
-
     List<GeoCoordinate> coordinates = [];
-    Geocoder geocoder = new(apiKey);
 
     foreach (string address in addresses)
     {
-        GeoCoordinate? coordinate = await geocoder.GeocodeAsync(address, string.Empty);
-        if (coordinate != null)
-            coordinates.Add(coordinate.Value);
+        GeocodeResult? result = await geocoder.GeocodeAsync(address, string.Empty);
+        if (result != null)
+            coordinates.Add(result.Coordinate);
     }
 
-    Router tripper = new(apiKey);
-    return await tripper.GetRouteAsync(new() { ComputeBestWaypointOrder = true, RouteType = RouteType.Shortest }, coordinates.Select(x => x).ToArray());
+    return await router.GetRouteAsync(new RoutePlanOptions() { OptimizeWaypointOrder = true, RouteType = RouteType.Shortest }, coordinates.ToArray());
 })
 .WithName("GetTrip")
 .WithOpenApi();
 
-app.MapPost("/sample", async ([FromBody] IEnumerable<Coords> coordinates, IConfiguration config) =>
+app.MapPost("/sample", async ([FromBody] IEnumerable<Coords> coordinates, IRoutePlanner router) =>
 {
-    string apiKey = config["token"] ?? throw new InvalidOperationException("API key not configured.");
-
-    Router tripper = new(apiKey);
-    return await tripper.GetRouteAsync(new() { ComputeBestWaypointOrder = true, RouteType = RouteType.Shortest }, coordinates.Select(x => x.ToCoordinate()).ToArray());
+    return await router.GetRouteAsync(new RoutePlanOptions() { OptimizeWaypointOrder = true, RouteType = RouteType.Shortest }, coordinates.Select(x => x.ToCoordinate()).ToArray());
 })
 .WithName("GetSample")
 .WithOpenApi();

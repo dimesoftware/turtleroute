@@ -4,32 +4,80 @@ This is a project that supports the map functionalities in Dime.Scheduler. Most 
 
 ## Installation
 
-Use the package manager NuGet to install the package:
+Turtle Route is split into a core package with the contracts and the geocoding pipeline, and one package per vendor:
 
 ```cli
-dotnet add package TurtleRoute
+dotnet add package TurtleRoute            # IGeocoder, IRoutePlanner, IRouteMatrix, GeocodingPipeline
+dotnet add package TurtleRoute.OpenCage   # OpenCage geocoding
+dotnet add package TurtleRoute.Azure      # Azure Maps geocoding and routing
 ```
 
 ## Usage
 
-### Geocoding
+Register the providers in the calling project. Geocoders are tried in the order they are registered: when a layer throws (outage, invalid key, quota exceeded), finds nothing, or returns a result below the minimum confidence, the next layer is tried.
 
 ``` csharp
-using TurtleRoute;
-
-Geocoder api = new("MYTOKEN");
-GeoCoordinate? address = await api.GeocodeAsync("Katwilgweg", "2", "2050", "Antwerpen", "", "BE");
+builder.Services.AddTurtleRoute()
+    .AddOpenCageGeocoder(o => o.ApiKey = config["OpenCage:ApiKey"])   // primary
+    .AddAzureMapsGeocoder(o => o.ApiKey = config["AzureMaps:ApiKey"]) // fallback
+    .ConfigureGeocoding(o => o.MinimumConfidence = GeocodeConfidence.Medium)
+    .UseAzureMapsRouting(o => o.ApiKey = config["AzureMaps:ApiKey"]);
 ```
+
+Then inject `IGeocoder`, `IRoutePlanner` or `IRouteMatrix`:
+
+``` csharp
+GeocodeResult? result = await geocoder.GeocodeAsync(new Address("Katwilgweg", "2", "2050", "Antwerpen", "", "BE"));
+// result.Coordinate, result.Confidence, result.Provider ("OpenCage" or "AzureMaps")
+```
+
+The pipeline returns `null` when no layer produced an acceptable result, and throws a `GeocodingException` only when every layer failed, so callers can tell "address not found" apart from "try again later".
+
+Without DI, the providers and the pipeline can be created directly:
+
+``` csharp
+IGeocoder geocoder = new GeocodingPipeline([
+    new OpenCageGeocoder(httpClient, new OpenCageOptions { ApiKey = "..." }),
+    new AzureGeocoder("...")
+]);
+```
+
+To add another vendor, implement `IGeocoder` and register it with `builder.AddGeocoder<MyGeocoder>()`.
+
+### Shadow mode
+
+To compare a new provider with the current one on real traffic, run it in shadow mode. Callers always get the configured pipeline's result; a sample of requests is repeated against the shadow geocoder in a background worker (so a host is required), and the shadow's results are never returned or stored.
+
+``` csharp
+builder.Services.AddTurtleRoute()
+    .AddAzureMapsGeocoder(o => o.ApiKey = config["AzureMaps:ApiKey"])
+    .AddShadowGeocoder(shadow => shadow.AddOpenCageGeocoder(o => o.ApiKey = config["OpenCage:ApiKey"]), o =>
+    {
+        o.SampleRate = 0.10;                          // share of requests repeated against the shadow
+        o.SummaryInterval = TimeSpan.FromHours(1);    // one summary log line per interval
+        o.DisagreementThresholdInMeters = 250;
+        o.MaxDisagreementsPerInterval = 5;            // individually logged, with their address
+        o.MaxRequestsPerSecond = 1;                   // stay within the shadow provider's plan
+    });
+```
+
+The comparisons are aggregated in memory and logged as one line per interval, e.g.:
+
+```
+Geocoding shadow summary OpenCage vs AzureMaps over 60 min: 154 comparisons, accepted 87.0%, within 50 m 71.4%,
+within 250 m 92.1%, within 1 km 97.4%, p50 25 m, p90 250 m, max 3200 m, not found 3.2%, errors 0.6%,
+disagreements 3, dropped 0, 180 ms vs 140 ms, countries: BE 120 (89% accepted), DE 30 (80% accepted), other 4 (75% accepted)
+```
+
+A disagreement is a shadow result that would have been accepted but lies further than the threshold from the primary result; up to `MaxDisagreementsPerInterval` of them are logged as warnings with the address, the rest are only counted. Nothing is logged for an interval without traffic. To send the comparisons elsewhere, register your own `IGeocodingComparisonSink`.
 
 ### Routing
 
 ``` csharp
-Router api = new(_token);
-
 GeoCoordinate start = new(51.219501, 4.359231);
 GeoCoordinate end = new(51.214625, 4.382112);
 
-Route route = await api.GetDirectionsAsync(start, end);
+Route route = await routePlanner.GetRouteAsync(start, end);
 ```
 
 ## Contributing
