@@ -10,12 +10,14 @@ namespace TurtleRoute.Tests
             .AddJsonFile("appsettings.development.json", true)
             .AddJsonFile("appsettings.Development.json", true) // File names are case-sensitive on Linux CI agents
             .AddJsonFile("appsettings.test.json", true)
-            .AddEnvironmentVariables("TURTLEROUTE_") // For CI, e.g. TURTLEROUTE_token and TURTLEROUTE_openCageToken
+            .AddEnvironmentVariables("TURTLEROUTE_") // For CI, e.g. TURTLEROUTE_token, TURTLEROUTE_openCageToken and TURTLEROUTE_hereToken
             .Build();
 
         public static string AzureMapsToken => Require("token");
 
         public static string OpenCageToken => Require("openCageToken");
+
+        public static string HereToken => Require("hereToken");
 
         /// <summary>
         /// Integration tests call live APIs; they are skipped when the key is not configured.

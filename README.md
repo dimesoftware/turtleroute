@@ -14,6 +14,7 @@ Turtle Route is split into a core package with the contracts and the geocoding p
 dotnet add package TurtleRoute            # IGeocoder, IRoutePlanner, IRouteMatrix, GeocodingPipeline
 dotnet add package TurtleRoute.OpenCage   # OpenCage geocoding
 dotnet add package TurtleRoute.Azure      # Azure Maps geocoding and routing
+dotnet add package TurtleRoute.Here       # HERE routing
 ```
 
 ## Usage
@@ -74,6 +75,24 @@ disagreements 3, dropped 0, 180 ms vs 140 ms, countries: BE 120 (89% accepted), 
 ```
 
 A disagreement is a shadow result that would have been accepted but lies further than the threshold from the primary result; up to `MaxDisagreementsPerInterval` of them are logged as warnings with the address, the rest are only counted. Nothing is logged for an interval without traffic. To send the comparisons elsewhere, register your own `IGeocodingComparisonSink`.
+
+### Routing
+
+``` csharp
+GeoCoordinate start = new(51.219501, 4.359231);
+GeoCoordinate end = new(51.214625, 4.382112);
+
+Route route = await routePlanner.GetRouteAsync(start, end);
+```
+
+To route with HERE instead of Azure Maps, register it in place of `UseAzureMapsRouting`:
+
+``` csharp
+builder.Services.AddTurtleRoute()
+    .UseHereRouting(o => o.ApiKey = config["Here:ApiKey"]);
+```
+
+Routes use the HERE Routing API v8 and return the polyline of each leg in `Leg.Waypoints`. With `OptimizeWaypointOrder`, the order is first calculated by the HERE Waypoints Sequence API, which is a second billable transaction; it is skipped when there are fewer than two intermediate stops. The matrix uses the HERE Matrix Routing API v8 in a single region-mode request when all coordinates fit within 400 km, and in chunks of 15 origins otherwise.
 
 ## Contributing
 
