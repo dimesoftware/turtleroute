@@ -6,9 +6,17 @@
   </Configurations>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="../tests/TurtleRoute.Tests.csproj" />
+    <File Path="../tests/Directory.Build.props" />
+    <Project Path="../tests/TurtleRoute.Tests/TurtleRoute.Tests.csproj" />
+    <Project Path="../tests/TurtleRoute.Azure.Tests/TurtleRoute.Azure.Tests.csproj" />
+    <Project Path="../tests/TurtleRoute.OpenCage.Tests/TurtleRoute.OpenCage.Tests.csproj" />
+    <Project Path="../tests/TurtleRoute.Here.Tests/TurtleRoute.Here.Tests.csproj" />
   </Folder>
-  <Project Path="TurtleRoute.csproj" />
+  <Project Path="TurtleRoute/TurtleRoute.csproj" />
+  <Project Path="TurtleRoute.Azure/TurtleRoute.Azure.csproj" />
+  <Project Path="TurtleRoute.OpenCage/TurtleRoute.OpenCage.csproj" />
+  <Project Path="TurtleRoute.Here/TurtleRoute.Here.csproj" />
 </Solution>

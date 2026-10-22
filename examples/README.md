@@ -9,10 +9,11 @@
 
 ## Azure Maps config
 
-In the appsettings.json file, paste the Azure Maps key in the token config.
+In the appsettings.json file, paste the Azure Maps key in the token config. Optionally add an OpenCage key: OpenCage then geocodes first, with Azure Maps as the fallback.
 
 ```json
 {
   "token": "",
+  "openCageToken": ""
 }
 ```
