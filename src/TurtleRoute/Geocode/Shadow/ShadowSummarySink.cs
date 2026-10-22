@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +21,7 @@ namespace TurtleRoute
 
         // Country values are free text, so the number tracked per interval is capped.
         private const int MaxTrackedCountries = 100;
+
         private const string OtherCountries = "other";
 
         private readonly object _lock = new();
@@ -124,7 +126,7 @@ namespace TurtleRoute
             if (rest.Comparisons > 0)
                 top.Add(new(OtherCountries, rest));
 
-            return string.Join(", ", top.Select(c => $"{c.Key} {c.Value.Comparisons} ({Rate(c.Value.Accepted, c.Value.Comparisons):P0} accepted)"));
+            return string.Join(", ", top.Select(c => string.Create(CultureInfo.InvariantCulture, $"{c.Key} {c.Value.Comparisons} ({Rate(c.Value.Accepted, c.Value.Comparisons) * 100:F0}% accepted)")));
         }
 
         private static double Rate(int count, int total) => total == 0 ? 0 : (double)count / total;

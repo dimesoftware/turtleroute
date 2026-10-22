@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or PR cancels the run in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Build
+        run: dotnet build src/TurtleRoute.slnx -c Release
+
+      # Offline tests only: they use canned responses, so they are free, fast and need no API keys.
+      - name: Test
+        run: dotnet test src/TurtleRoute.slnx -c Release --no-build --filter "TestCategory!=Integration"
+
+  # The integration tests call the live Azure Maps, OpenCage and HERE APIs, which costs transactions, so they run
+  # after a merge to master or on demand rather than on every push. A test whose key is not set is skipped.
+  integration:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Integration tests
+        run: dotnet test src/TurtleRoute.slnx -c Release --filter "TestCategory=Integration"
+        env:
+          TURTLEROUTE_token: ${{ secrets.AZURE_MAPS_KEY }}
+          TURTLEROUTE_openCageToken: ${{ secrets.OPENCAGE_API_KEY }}
+          TURTLEROUTE_hereToken: ${{ secrets.HERE_API_KEY }}
