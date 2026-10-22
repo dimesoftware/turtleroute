@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TurtleRoute;
@@ -25,6 +26,10 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton(builder);
             services.AddOptions<GeocodingPipelineOptions>();
 
+            // Shared by every pipeline instance, so an outage is summarized instead of logged on every call.
+            // Register your own LayerFailureLog before calling this to change the interval.
+            services.TryAddSingleton(new LayerFailureLog());
+
             // Transient, so layers built on typed HttpClients get a fresh handler from IHttpClientFactory.
             services.AddTransient<IGeocoder>(sp =>
             {
@@ -34,7 +39,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 GeocodingPipeline pipeline = new(
                     builder.Geocoders.Select(factory => factory(sp)),
                     sp.GetRequiredService<IOptions<GeocodingPipelineOptions>>().Value,
-                    sp.GetService<ILogger<GeocodingPipeline>>());
+                    sp.GetService<ILogger<GeocodingPipeline>>(),
+                    sp.GetRequiredService<LayerFailureLog>());
 
                 if (builder.Shadow == null)
                     return pipeline;
@@ -47,7 +53,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 if (builder.RoutePlanners.Count == 0)
                     throw new InvalidOperationException("No route planners are registered. Add at least one, e.g. services.AddTurtleRoute().AddHereRouting(...).");
 
-                return new RoutePlannerPipeline(builder.RoutePlanners.Select(factory => factory(sp)), sp.GetService<ILogger<RoutePlannerPipeline>>());
+                return new RoutePlannerPipeline(builder.RoutePlanners.Select(factory => factory(sp)), sp.GetService<ILogger<RoutePlannerPipeline>>(), sp.GetRequiredService<LayerFailureLog>());
             });
 
             services.AddTransient<IRouteMatrix>(sp =>
@@ -55,7 +61,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 if (builder.RouteMatrices.Count == 0)
                     throw new InvalidOperationException("No route matrices are registered. Add at least one, e.g. services.AddTurtleRoute().AddHereRouting(...).");
 
-                return new RouteMatrixPipeline(builder.RouteMatrices.Select(factory => factory(sp)), sp.GetService<ILogger<RouteMatrixPipeline>>());
+                return new RouteMatrixPipeline(builder.RouteMatrices.Select(factory => factory(sp)), sp.GetService<ILogger<RouteMatrixPipeline>>(), sp.GetRequiredService<LayerFailureLog>());
             });
 
             return builder;

@@ -1,4 +1,5 @@
 using System;
+using System.Net.Http;
 using Microsoft.Extensions.Options;
 using TurtleRoute;
 using TurtleRoute.Here;
@@ -10,13 +11,20 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <summary>
         /// Adds HERE as the next routing layer, for both <see cref="IRoutePlanner"/> and <see cref="IRouteMatrix"/>.
         /// </summary>
-        /// <param name="configureHttpClient">Optionally configures the underlying HttpClients, e.g. to add a resilience handler.</param>
+        /// <param name="configureHttpClient">
+        /// Optionally configures the underlying HttpClients, e.g. to add a resilience handler. Its timeouts must fit within
+        /// <see cref="HereOptions.Timeout"/>, which bounds the whole call including retries.
+        /// </param>
         public static TurtleRouteBuilder AddHereRouting(this TurtleRouteBuilder builder, Action<HereOptions> configure, Action<IHttpClientBuilder> configureHttpClient = null)
         {
             builder.Services.AddOptions<HereOptions>().Configure(configure);
 
-            IHttpClientBuilder plannerClient = builder.Services.AddHttpClient<HereRoutePlanner, HereRoutePlanner>((httpClient, sp) => new HereRoutePlanner(httpClient, sp.GetRequiredService<IOptions<HereOptions>>().Value));
-            IHttpClientBuilder matrixClient = builder.Services.AddHttpClient<HereRouteMatrix, HereRouteMatrix>((httpClient, sp) => new HereRouteMatrix(httpClient, sp.GetRequiredService<IOptions<HereOptions>>().Value));
+            IHttpClientBuilder plannerClient = builder.Services
+                .AddHttpClient<HereRoutePlanner, HereRoutePlanner>((httpClient, sp) => new HereRoutePlanner(httpClient, sp.GetRequiredService<IOptions<HereOptions>>().Value))
+                .ConfigureHttpClient(ApplyTimeout);
+            IHttpClientBuilder matrixClient = builder.Services
+                .AddHttpClient<HereRouteMatrix, HereRouteMatrix>((httpClient, sp) => new HereRouteMatrix(httpClient, sp.GetRequiredService<IOptions<HereOptions>>().Value))
+                .ConfigureHttpClient(ApplyTimeout);
             configureHttpClient?.Invoke(plannerClient);
             configureHttpClient?.Invoke(matrixClient);
 
@@ -24,5 +32,8 @@ namespace Microsoft.Extensions.DependencyInjection
                 .AddRoutePlanner(sp => sp.GetRequiredService<HereRoutePlanner>())
                 .AddRouteMatrix(sp => sp.GetRequiredService<HereRouteMatrix>());
         }
+
+        private static void ApplyTimeout(IServiceProvider sp, HttpClient httpClient)
+            => httpClient.Timeout = sp.GetRequiredService<IOptions<HereOptions>>().Value.Timeout;
     }
 }

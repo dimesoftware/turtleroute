@@ -18,8 +18,9 @@ namespace TurtleRoute
     {
         private readonly IReadOnlyList<IRoutePlanner> _layers;
         private readonly ILogger<RoutePlannerPipeline> _logger;
+        private readonly LayerFailureLog _failureLog;
 
-        public RoutePlannerPipeline(IEnumerable<IRoutePlanner> layers, ILogger<RoutePlannerPipeline> logger = null)
+        public RoutePlannerPipeline(IEnumerable<IRoutePlanner> layers, ILogger<RoutePlannerPipeline> logger = null, LayerFailureLog failureLog = null)
         {
             ArgumentNullException.ThrowIfNull(layers);
 
@@ -28,6 +29,7 @@ namespace TurtleRoute
                 throw new ArgumentException("Provide at least one route planner.", nameof(layers));
 
             _logger = logger ?? NullLogger<RoutePlannerPipeline>.Instance;
+            _failureLog = failureLog ?? new LayerFailureLog();
         }
 
         /// <summary>
@@ -41,7 +43,7 @@ namespace TurtleRoute
 
             // Materialized once, so every layer gets the same stops even when the sequence is lazy.
             List<GeoCoordinate> stops = [.. coordinates];
-            return RoutingLayers.RunAsync(_layers, layer => layer.GetRouteAsync(stops, options, cancellationToken), _logger, cancellationToken);
+            return RoutingLayers.RunAsync(_layers, layer => layer.GetRouteAsync(stops, options, cancellationToken), _logger, _failureLog, cancellationToken);
         }
     }
 }

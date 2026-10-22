@@ -15,19 +15,24 @@ namespace TurtleRoute
         /// Invalid input is not passed on to the next layer, as it would reject it too and only cost a transaction.
         /// Neither is a cancellation by the caller.
         /// </remarks>
-        public static async Task<TResult> RunAsync<TLayer, TResult>(IReadOnlyList<TLayer> layers, Func<TLayer, Task<TResult>> call, ILogger logger, CancellationToken cancellationToken)
+        public static async Task<TResult> RunAsync<TLayer, TResult>(IReadOnlyList<TLayer> layers, Func<TLayer, Task<TResult>> call, ILogger logger, LayerFailureLog failureLog, CancellationToken cancellationToken)
         {
             List<Exception> errors = [];
 
-            foreach (TLayer layer in layers)
+            for (int position = 0; position < layers.Count; position++)
             {
+                TLayer layer = layers[position];
+                string name = layer.GetType().Name;
+
                 try
                 {
-                    return await call(layer);
+                    TResult result = await call(layer);
+                    failureLog.Succeeded(logger, name, position);
+                    return result;
                 }
                 catch (Exception ex) when (ex is not ArgumentException && !(ex is OperationCanceledException && cancellationToken.IsCancellationRequested))
                 {
-                    logger.LogWarning(ex, "Routing layer {Layer} failed, trying the next layer.", layer.GetType().Name);
+                    failureLog.Failed(logger, name, position, ex);
                     errors.Add(ex);
                 }
             }

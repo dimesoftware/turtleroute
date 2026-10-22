@@ -22,8 +22,9 @@ namespace TurtleRoute
         private readonly IReadOnlyList<IGeocoder> _layers;
         private readonly GeocodingPipelineOptions _options;
         private readonly ILogger<GeocodingPipeline> _logger;
+        private readonly LayerFailureLog _failureLog;
 
-        public GeocodingPipeline(IEnumerable<IGeocoder> layers, GeocodingPipelineOptions options = null, ILogger<GeocodingPipeline> logger = null)
+        public GeocodingPipeline(IEnumerable<IGeocoder> layers, GeocodingPipelineOptions options = null, ILogger<GeocodingPipeline> logger = null, LayerFailureLog failureLog = null)
         {
             ArgumentNullException.ThrowIfNull(layers);
 
@@ -33,6 +34,7 @@ namespace TurtleRoute
 
             _options = options ?? new GeocodingPipelineOptions();
             _logger = logger ?? NullLogger<GeocodingPipeline>.Instance;
+            _failureLog = failureLog ?? new LayerFailureLog();
         }
 
         /// <summary>
@@ -58,8 +60,9 @@ namespace TurtleRoute
         {
             List<Exception> errors = [];
 
-            foreach (IGeocoder layer in _layers)
+            for (int position = 0; position < _layers.Count; position++)
             {
+                IGeocoder layer = _layers[position];
                 string name = layer.GetType().Name;
                 GeocodeResult result;
 
@@ -69,10 +72,12 @@ namespace TurtleRoute
                 }
                 catch (Exception ex) when (!(ex is OperationCanceledException && cancellationToken.IsCancellationRequested))
                 {
-                    _logger.LogWarning(ex, "Geocoder {Geocoder} failed, trying the next layer.", name);
+                    _failureLog.Failed(_logger, name, position, ex);
                     errors.Add(ex);
                     continue;
                 }
+
+                _failureLog.Succeeded(_logger, name, position);
 
                 if (result != null && result.Confidence >= _options.MinimumConfidence)
                     return result;

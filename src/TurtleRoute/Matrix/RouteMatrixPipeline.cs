@@ -18,8 +18,9 @@ namespace TurtleRoute
     {
         private readonly IReadOnlyList<IRouteMatrix> _layers;
         private readonly ILogger<RouteMatrixPipeline> _logger;
+        private readonly LayerFailureLog _failureLog;
 
-        public RouteMatrixPipeline(IEnumerable<IRouteMatrix> layers, ILogger<RouteMatrixPipeline> logger = null)
+        public RouteMatrixPipeline(IEnumerable<IRouteMatrix> layers, ILogger<RouteMatrixPipeline> logger = null, LayerFailureLog failureLog = null)
         {
             ArgumentNullException.ThrowIfNull(layers);
 
@@ -28,6 +29,7 @@ namespace TurtleRoute
                 throw new ArgumentException("Provide at least one route matrix.", nameof(layers));
 
             _logger = logger ?? NullLogger<RouteMatrixPipeline>.Instance;
+            _failureLog = failureLog ?? new LayerFailureLog();
         }
 
         /// <summary>
@@ -40,7 +42,7 @@ namespace TurtleRoute
             ArgumentNullException.ThrowIfNull(coordinates);
 
             List<GeoCoordinate> points = [.. coordinates];
-            return RoutingLayers.RunAsync(_layers, layer => layer.GetRouteMatrixAsync(points, cancellationToken), _logger, cancellationToken);
+            return RoutingLayers.RunAsync(_layers, layer => layer.GetRouteMatrixAsync(points, cancellationToken), _logger, _failureLog, cancellationToken);
         }
     }
 }

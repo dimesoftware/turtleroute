@@ -34,6 +34,24 @@ GeocodeResult? result = await geocoder.GeocodeAsync(new Address("Katwilgweg", "2
 
 The pipeline returns `null` when no layer produced an acceptable result, and throws a `GeocodingException` only when every layer failed, so callers can tell "address not found" apart from "try again later".
 
+### Failures, timeouts and retries
+
+A failing layer is logged once with its exception; while it keeps failing, one summary line per layer is logged every 5 minutes (e.g. `OpenCageGeocoder failed 1482 more times in the last 00:05:00 ... Last error: OpenCage returned 503`), and the first call that succeeds again logs that it recovered. To change the interval, register `new LayerFailureLog(TimeSpan.FromMinutes(1))` as a singleton before `AddTurtleRoute()`.
+
+OpenCage and HERE requests time out after `Timeout` (10 and 30 seconds by default), so a hanging provider falls back instead of waiting for the default HttpClient timeout of 100 seconds. For a retry and a circuit breaker, add a resilience handler through `configureHttpClient`, e.g. with [Microsoft.Extensions.Http.Resilience](https://www.nuget.org/packages/Microsoft.Extensions.Http.Resilience). Keep it short, as the next layer is waiting, and within `Timeout`, which bounds the whole call including retries:
+
+``` csharp
+.AddOpenCageGeocoder(o => o.ApiKey = config["OpenCage:ApiKey"], http => http.AddStandardResilienceHandler(r =>
+{
+    r.Retry.MaxRetryAttempts = 1;
+    r.AttemptTimeout.Timeout = TimeSpan.FromSeconds(4);
+    r.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(10);
+    r.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
+}))
+```
+
+While the circuit is open, calls fail at once and go straight to the next layer. Errors that a retry cannot fix, such as an invalid key (401) or an exceeded quota (402), fall back without a retry: watch the failure summaries, or the share of results whose `Provider` is the fallback, so they do not go unnoticed.
+
 Without DI, the providers and the pipeline can be created directly:
 
 ``` csharp
