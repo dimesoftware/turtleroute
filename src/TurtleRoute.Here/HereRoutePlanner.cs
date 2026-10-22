@@ -42,12 +42,15 @@ namespace TurtleRoute.Here
             List<RouteRevision> revisions = [];
 
             // With fewer than two intermediate stops there is nothing to reorder, so skip the extra transaction.
+            // A single intermediate stop still gets its revision, as Azure Maps returns one.
             if (plan.OptimizeWaypointOrder && stops.Count > 3)
             {
                 List<int> order = await GetWaypointOrderAsync(stops, plan, cancellationToken);
-                revisions = [.. order.Select((provided, optimized) => new RouteRevision(provided, optimized))];
+                revisions = [.. order.Select((provided, optimized) => new RouteRevision(provided, optimized)).OrderBy(revision => revision.OriginalIndex)];
                 stops = [stops[0], .. order.Select(i => stops[i + 1]), stops[^1]];
             }
+            else if (plan.OptimizeWaypointOrder && stops.Count == 3)
+                revisions = [new RouteRevision(0, 0)];
 
             List<KeyValuePair<string, string>> parameters =
             [

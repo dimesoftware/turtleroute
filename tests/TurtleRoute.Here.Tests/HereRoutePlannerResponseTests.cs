@@ -188,7 +188,8 @@ namespace TurtleRoute.Here.Tests
             int brussels = routeQuery.IndexOf("via=50.846557,4.351697", StringComparison.Ordinal);
             Assert.IsTrue(leuven < ghent && ghent < brussels, routeQuery);
 
-            CollectionAssert.AreEqual(new[] { new RouteRevision(2, 0), new RouteRevision(0, 1), new RouteRevision(1, 2) }, route.Revisions);
+            // In the original order of the stops, as Azure Maps lists them.
+            CollectionAssert.AreEqual(new[] { new RouteRevision(0, 1), new RouteRevision(1, 2), new RouteRevision(2, 0) }, route.Revisions);
         }
 
         [TestMethod]
@@ -196,9 +197,10 @@ namespace TurtleRoute.Here.Tests
         {
             StubHandler handler = new StubHandler().On("/routes", Routes(Section(1, 1), Section(1, 1)));
 
-            await Create(handler).GetRouteAsync(new RoutePlanOptions { OptimizeWaypointOrder = true }, Antwerp, Ghent, Brussels);
+            Route route = await Create(handler).GetRouteAsync(new RoutePlanOptions { OptimizeWaypointOrder = true }, Antwerp, Ghent, Brussels);
 
             Assert.IsNull(handler.Last("/findsequence2"));
+            CollectionAssert.AreEqual(new[] { new RouteRevision(0, 0) }, route.Revisions);
         }
 
         [TestMethod]
