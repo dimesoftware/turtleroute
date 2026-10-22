@@ -1,0 +1,78 @@
+name: Publish to NuGet
+
+# Publishing a GitHub release builds, tests and pushes every package in src/ to nuget.org.
+# The release tag sets the package version: v1.2.0 or 1.2.0, and v1.2.0-beta.1 for a prerelease.
+#
+# To try a branch before it is released, run this workflow manually on that branch ("Run workflow", or
+# gh workflow run publish.yml --ref <branch> -f version=1.0.0-pr.12 -f push=true). Manual runs must use a
+# prerelease version, so a branch can never publish a stable one, and only push to nuget.org when asked to;
+# otherwise the packages are only kept as a workflow artifact.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Prerelease package version, e.g. 1.0.0-pr.12
+        required: true
+      push:
+        description: Push to nuget.org (otherwise only build, test and keep the packages as an artifact)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Read version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            VERSION="${INPUT_VERSION#v}"
+            if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z.-]+$ ]]; then
+              echo "::error::Manual runs need a prerelease version such as 1.0.0-pr.12, not '$INPUT_VERSION'. Stable versions are published by creating a release."
+              exit 1
+            fi
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+            if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "::error::Release tag '$GITHUB_REF_NAME' is not a version such as v1.2.0 or v1.2.0-beta.1."
+              exit 1
+            fi
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: dotnet build src/TurtleRoute.slnx -c Release -p:Version=${{ steps.version.outputs.version }} -p:ContinuousIntegrationBuild=true
+
+      # Integration tests call live APIs with keys that are not available here.
+      - name: Test
+        run: dotnet test src/TurtleRoute.slnx -c Release --no-build --filter "TestCategory!=Integration"
+
+      - name: Pack
+        run: dotnet pack src/TurtleRoute.slnx -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }} -p:SymbolPackageFormat=snupkg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ steps.version.outputs.version }}
+          path: artifacts/
+
+      # Pushing a .nupkg also pushes its .snupkg symbols. --skip-duplicate makes a re-run safe after a partial push.
+      - name: Push
+        if: github.event_name == 'release' || inputs.push
+        run: dotnet nuget push "artifacts/*.nupkg" --api-key "${{ secrets.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
