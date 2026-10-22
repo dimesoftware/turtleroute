@@ -1,0 +1,13 @@
+<Project>
+
+	<!--
+		Releasing one package (see .github/workflows/publish.yml): only the project named by ReleasePackage gets ReleaseVersion.
+		A global -p:Version would also flow into referenced projects, so e.g. TurtleRoute.OpenCage 0.2.0 would depend on a
+		TurtleRoute 0.2.0 that may not exist. This file is imported after the project file, so it also wins over a <Version> there.
+	-->
+	<PropertyGroup Condition="'$(ReleasePackage)' == '$(MSBuildProjectName)' and '$(ReleaseVersion)' != ''">
+		<Version>$(ReleaseVersion)</Version>
+		<PackageVersion>$(ReleaseVersion)</PackageVersion>
+	</PropertyGroup>
+
+</Project>

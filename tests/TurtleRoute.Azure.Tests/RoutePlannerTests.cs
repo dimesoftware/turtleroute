@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TurtleRoute.Tests;
@@ -8,6 +9,9 @@ namespace TurtleRoute.Azure.Tests
     [TestCategory("Integration")]
     public class RoutePlannerTests
     {
+        private static readonly GeoCoordinate Antwerp = new(51.219501, 4.359231);
+        private static readonly GeoCoordinate Mechelen = new(51.025, 4.4776);
+
         [TestMethod]
         public async Task Router_Directions_ShouldGetDrivingDirections()
         {
@@ -23,6 +27,47 @@ namespace TurtleRoute.Azure.Tests
 
             int distance = 1200 * 1000;
             Assert.IsLessThan(distance, route.Distance);
+        }
+
+        [TestMethod]
+        [DataRow(TravelMode.Car)]
+        [DataRow(TravelMode.Van)]
+        [DataRow(TravelMode.Truck)]
+        [DataRow(TravelMode.Motorcycle)]
+        [DataRow(TravelMode.Bicycle)]
+        [DataRow(TravelMode.Pedestrian)]
+        public async Task Router_TravelMode_ShouldGetRoute(TravelMode travelMode)
+        {
+            AzureRoutePlanner api = new(TestSettings.AzureMapsToken);
+
+            Route route = await api.GetRouteAsync(new RoutePlanOptions { TravelMode = travelMode }, Antwerp, Mechelen);
+
+            Assert.IsGreaterThan(0, route.Distance);
+            Assert.IsGreaterThan(0, route.Duration);
+        }
+
+        [TestMethod]
+        public async Task Router_Pedestrian_ShouldTakeLongerThanCar()
+        {
+            AzureRoutePlanner api = new(TestSettings.AzureMapsToken);
+
+            Route car = await api.GetRouteAsync(new RoutePlanOptions { TravelMode = TravelMode.Car }, Antwerp, Mechelen);
+            Route pedestrian = await api.GetRouteAsync(new RoutePlanOptions { TravelMode = TravelMode.Pedestrian }, Antwerp, Mechelen);
+
+            Assert.IsGreaterThan(car.Duration * 2, pedestrian.Duration);
+        }
+
+        [TestMethod]
+        public async Task Router_FutureAndPastDeparture_ShouldGetRoute()
+        {
+            AzureRoutePlanner api = new(TestSettings.AzureMapsToken);
+
+            // Azure rejects departure times that are not in the future, so a past one must be sent as "now".
+            Route future = await api.GetRouteAsync(new RoutePlanOptions { DepartAt = DateTimeOffset.UtcNow.Date.AddDays(1).AddHours(7) }, Antwerp, Mechelen);
+            Route past = await api.GetRouteAsync(new RoutePlanOptions { DepartAt = DateTimeOffset.UtcNow.AddHours(-1) }, Antwerp, Mechelen);
+
+            Assert.IsGreaterThan(0, future.Duration);
+            Assert.IsGreaterThan(0, past.Duration);
         }
 
         [TestMethod]

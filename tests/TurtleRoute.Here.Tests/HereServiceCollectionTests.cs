@@ -7,37 +7,29 @@ namespace TurtleRoute.Here.Tests
     public class HereServiceCollectionTests
     {
         [TestMethod]
-        public void UseHereRouting_ShouldRegisterRoutePlannerAndMatrix()
+        public void AddHereRouting_ShouldAddRoutePlannerAndMatrixLayers()
         {
             ServiceCollection services = new();
-            services.AddTurtleRoute().UseHereRouting(o => o.ApiKey = "here");
+            services.AddTurtleRoute().AddHereRouting(o => o.ApiKey = "here");
 
             using ServiceProvider provider = services.BuildServiceProvider();
 
-            Assert.IsInstanceOfType<HereRoutePlanner>(provider.GetRequiredService<IRoutePlanner>());
-            Assert.IsInstanceOfType<HereRouteMatrix>(provider.GetRequiredService<IRouteMatrix>());
+            RoutePlannerPipeline planner = (RoutePlannerPipeline)provider.GetRequiredService<IRoutePlanner>();
+            Assert.HasCount(1, planner.Layers);
+            Assert.IsInstanceOfType<HereRoutePlanner>(planner.Layers[0]);
+
+            RouteMatrixPipeline matrix = (RouteMatrixPipeline)provider.GetRequiredService<IRouteMatrix>();
+            Assert.HasCount(1, matrix.Layers);
+            Assert.IsInstanceOfType<HereRouteMatrix>(matrix.Layers[0]);
         }
 
         [TestMethod]
-        public void UseHereRouting_ShouldReplaceEarlierRouting()
-        {
-            ServiceCollection services = new();
-            services.AddTurtleRoute()
-                .UseRoutePlanner(_ => null)
-                .UseHereRouting(o => o.ApiKey = "here");
-
-            using ServiceProvider provider = services.BuildServiceProvider();
-
-            Assert.IsInstanceOfType<HereRoutePlanner>(provider.GetRequiredService<IRoutePlanner>());
-        }
-
-        [TestMethod]
-        public void UseHereRouting_ShouldApplyHttpClientConfiguration()
+        public void AddHereRouting_ShouldApplyHttpClientConfiguration()
         {
             int configured = 0;
 
             ServiceCollection services = new();
-            services.AddTurtleRoute().UseHereRouting(o => o.ApiKey = "here", http => configured++);
+            services.AddTurtleRoute().AddHereRouting(o => o.ApiKey = "here", http => configured++);
 
             Assert.AreEqual(2, configured);
         }

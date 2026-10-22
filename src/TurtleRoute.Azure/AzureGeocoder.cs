@@ -63,7 +63,7 @@ namespace TurtleRoute.Azure
             double longitude = coords.Value[0];
             double latitude = coords.Value[1];
 
-            return new GeocodeResult(new GeoCoordinate(latitude, longitude), ToConfidence(feature.Properties?.Confidence), ProviderName);
+            return new GeocodeResult(new GeoCoordinate(latitude, longitude), ToConfidence(feature.Properties?.Confidence), ProviderName, feature.Properties?.Address?.FormattedAddress);
         }
 
         private static GeocodeConfidence ToConfidence(ConfidenceEnum? confidence)

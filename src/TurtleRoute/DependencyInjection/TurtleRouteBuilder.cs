@@ -8,11 +8,14 @@ using TurtleRoute;
 namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
-    /// Configures the Turtle Route services. Geocoders are added as pipeline layers in the order they are registered.
+    /// Configures the Turtle Route services. Geocoders, route planners and route matrices are added as pipeline layers,
+    /// tried in the order they are registered.
     /// </summary>
     public class TurtleRouteBuilder
     {
         private readonly List<Func<IServiceProvider, IGeocoder>> _geocoders = [];
+        private readonly List<Func<IServiceProvider, IRoutePlanner>> _routePlanners = [];
+        private readonly List<Func<IServiceProvider, IRouteMatrix>> _routeMatrices = [];
 
         internal TurtleRouteBuilder(IServiceCollection services, bool isShadow = false)
         {
@@ -23,6 +26,10 @@ namespace Microsoft.Extensions.DependencyInjection
         public IServiceCollection Services { get; }
 
         internal IReadOnlyList<Func<IServiceProvider, IGeocoder>> Geocoders => _geocoders;
+
+        internal IReadOnlyList<Func<IServiceProvider, IRoutePlanner>> RoutePlanners => _routePlanners;
+
+        internal IReadOnlyList<Func<IServiceProvider, IRouteMatrix>> RouteMatrices => _routeMatrices;
 
         internal bool IsShadow { get; }
 
@@ -92,21 +99,49 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
-        /// Registers the <see cref="IRoutePlanner"/>, replacing any earlier registration.
+        /// Adds a route planner as the next layer of the pipeline. It is registered as a singleton unless already registered.
         /// </summary>
-        public TurtleRouteBuilder UseRoutePlanner(Func<IServiceProvider, IRoutePlanner> factory)
+        public TurtleRouteBuilder AddRoutePlanner<TRoutePlanner>() where TRoutePlanner : class, IRoutePlanner
         {
-            Services.Replace(ServiceDescriptor.Singleton(factory));
+            Services.TryAddSingleton<TRoutePlanner>();
+            return AddRoutePlanner(sp => sp.GetRequiredService<TRoutePlanner>());
+        }
+
+        /// <summary>
+        /// Adds a route planner as the next layer of the pipeline.
+        /// </summary>
+        public TurtleRouteBuilder AddRoutePlanner(Func<IServiceProvider, IRoutePlanner> factory)
+        {
+            ArgumentNullException.ThrowIfNull(factory);
+            ThrowIfShadow();
+            _routePlanners.Add(factory);
             return this;
         }
 
         /// <summary>
-        /// Registers the <see cref="IRouteMatrix"/>, replacing any earlier registration.
+        /// Adds a route matrix as the next layer of the pipeline. It is registered as a singleton unless already registered.
         /// </summary>
-        public TurtleRouteBuilder UseRouteMatrix(Func<IServiceProvider, IRouteMatrix> factory)
+        public TurtleRouteBuilder AddRouteMatrix<TRouteMatrix>() where TRouteMatrix : class, IRouteMatrix
         {
-            Services.Replace(ServiceDescriptor.Singleton(factory));
+            Services.TryAddSingleton<TRouteMatrix>();
+            return AddRouteMatrix(sp => sp.GetRequiredService<TRouteMatrix>());
+        }
+
+        /// <summary>
+        /// Adds a route matrix as the next layer of the pipeline.
+        /// </summary>
+        public TurtleRouteBuilder AddRouteMatrix(Func<IServiceProvider, IRouteMatrix> factory)
+        {
+            ArgumentNullException.ThrowIfNull(factory);
+            ThrowIfShadow();
+            _routeMatrices.Add(factory);
             return this;
+        }
+
+        private void ThrowIfShadow()
+        {
+            if (IsShadow)
+                throw new InvalidOperationException("Shadow mode compares geocoders only. Add routing providers to the main builder.");
         }
     }
 }

@@ -20,15 +20,20 @@ namespace TurtleRoute.Azure.Tests
         }
 
         [TestMethod]
-        public void UseAzureMapsRouting_ShouldRegisterRoutePlannerAndMatrix()
+        public void AddAzureMapsRouting_ShouldAddRoutePlannerAndMatrixLayers()
         {
             ServiceCollection services = new();
-            services.AddTurtleRoute().UseAzureMapsRouting(o => o.ApiKey = "azure");
+            services.AddTurtleRoute().AddAzureMapsRouting(o => o.ApiKey = "azure");
 
             using ServiceProvider provider = services.BuildServiceProvider();
 
-            Assert.IsInstanceOfType<AzureRoutePlanner>(provider.GetRequiredService<IRoutePlanner>());
-            Assert.IsInstanceOfType<AzureRouteMatrix>(provider.GetRequiredService<IRouteMatrix>());
+            RoutePlannerPipeline planner = (RoutePlannerPipeline)provider.GetRequiredService<IRoutePlanner>();
+            Assert.HasCount(1, planner.Layers);
+            Assert.IsInstanceOfType<AzureRoutePlanner>(planner.Layers[0]);
+
+            RouteMatrixPipeline matrix = (RouteMatrixPipeline)provider.GetRequiredService<IRouteMatrix>();
+            Assert.HasCount(1, matrix.Layers);
+            Assert.IsInstanceOfType<AzureRouteMatrix>(matrix.Layers[0]);
         }
     }
 }

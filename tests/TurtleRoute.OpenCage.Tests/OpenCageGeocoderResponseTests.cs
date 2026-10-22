@@ -30,6 +30,16 @@ namespace TurtleRoute.OpenCage.Tests
         }
 
         [TestMethod]
+        public async Task GeocodeAsync_ShouldReturnTheMatchedAddress()
+        {
+            StubHandler handler = StubHandler.Json(HttpStatusCode.OK, """{"results":[{"confidence":9,"formatted":"Katwilgweg 2, 2050 Antwerp, Belgium","geometry":{"lat":51.219501,"lng":4.359231},"components":{"road":"Katwilgweg","house_number":"2"}}],"status":{"code":200,"message":"OK"}}""");
+
+            GeocodeResult result = await Create(handler).GeocodeAsync(Katwilgweg);
+
+            Assert.AreEqual("Katwilgweg 2, 2050 Antwerp, Belgium", result.MatchedAddress);
+        }
+
+        [TestMethod]
         public async Task GeocodeAsync_ShouldSendLocalAddressFormatAndCountryCode()
         {
             StubHandler handler = StubHandler.Json(HttpStatusCode.OK, Result(10, """{"road":"Katwilgweg","house_number":"2"}"""));

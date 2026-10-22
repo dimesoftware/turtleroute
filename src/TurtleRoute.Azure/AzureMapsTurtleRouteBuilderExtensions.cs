@@ -17,14 +17,17 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
-        /// Uses Azure Maps for <see cref="TurtleRoute.IRoutePlanner"/> and <see cref="TurtleRoute.IRouteMatrix"/>.
+        /// Adds Azure Maps as the next routing layer, for both <see cref="TurtleRoute.IRoutePlanner"/> and <see cref="TurtleRoute.IRouteMatrix"/>.
         /// </summary>
-        public static TurtleRouteBuilder UseAzureMapsRouting(this TurtleRouteBuilder builder, Action<AzureMapsOptions> configure)
+        public static TurtleRouteBuilder AddAzureMapsRouting(this TurtleRouteBuilder builder, Action<AzureMapsOptions> configure)
         {
             builder.Services.AddOptions<AzureMapsOptions>().Configure(configure);
+            builder.Services.AddSingleton(sp => new AzureRoutePlanner(sp.GetRequiredService<IOptions<AzureMapsOptions>>().Value.ApiKey));
+            builder.Services.AddSingleton(sp => new AzureRouteMatrix(sp.GetRequiredService<IOptions<AzureMapsOptions>>().Value.ApiKey));
+
             return builder
-                .UseRoutePlanner(sp => new AzureRoutePlanner(sp.GetRequiredService<IOptions<AzureMapsOptions>>().Value.ApiKey))
-                .UseRouteMatrix(sp => new AzureRouteMatrix(sp.GetRequiredService<IOptions<AzureMapsOptions>>().Value.ApiKey));
+                .AddRoutePlanner(sp => sp.GetRequiredService<AzureRoutePlanner>())
+                .AddRouteMatrix(sp => sp.GetRequiredService<AzureRouteMatrix>());
         }
     }
 }

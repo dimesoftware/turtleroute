@@ -24,6 +24,9 @@ namespace TurtleRoute.OpenCage
         [JsonPropertyName("geometry")]
         public OpenCageGeometry Geometry { get; set; }
 
+        [JsonPropertyName("formatted")]
+        public string Formatted { get; set; }
+
         [JsonPropertyName("components")]
         public Dictionary<string, JsonElement> Components { get; set; } = [];
     }

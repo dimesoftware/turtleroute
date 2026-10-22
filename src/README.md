@@ -15,14 +15,14 @@ dotnet add package TurtleRoute.Here       # HERE routing
 
 ## Usage
 
-Register the providers in the calling project. Geocoders are tried in the order they are registered: when a layer throws (outage, invalid key, quota exceeded), finds nothing, or returns a result below the minimum confidence, the next layer is tried.
+Register the providers in the calling project. Geocoders are tried in the order they are registered: when a layer throws (outage, invalid key, quota exceeded), finds nothing, or returns a result below the minimum confidence, the next layer is tried. Routing providers work the same way (see [Routing](#routing)).
 
 ``` csharp
 builder.Services.AddTurtleRoute()
     .AddOpenCageGeocoder(o => o.ApiKey = config["OpenCage:ApiKey"])   // primary
     .AddAzureMapsGeocoder(o => o.ApiKey = config["AzureMaps:ApiKey"]) // fallback
     .ConfigureGeocoding(o => o.MinimumConfidence = GeocodeConfidence.Medium)
-    .UseAzureMapsRouting(o => o.ApiKey = config["AzureMaps:ApiKey"]);
+    .AddAzureMapsRouting(o => o.ApiKey = config["AzureMaps:ApiKey"]);
 ```
 
 Then inject `IGeocoder`, `IRoutePlanner` or `IRouteMatrix`:
@@ -81,11 +81,12 @@ GeoCoordinate end = new(51.214625, 4.382112);
 Route route = await routePlanner.GetRouteAsync(start, end);
 ```
 
-To route with HERE instead of Azure Maps, register it in place of `UseAzureMapsRouting`:
+Routing providers are layers too, tried in the order they are registered: when a route planner or matrix throws (outage, invalid key, quota exceeded, no route found), the next one is tried, and a `RoutingException` is thrown only when every layer failed. Invalid input is not retried. For example, HERE with Azure Maps as the fallback:
 
 ``` csharp
 builder.Services.AddTurtleRoute()
-    .UseHereRouting(o => o.ApiKey = config["Here:ApiKey"]);
+    .AddHereRouting(o => o.ApiKey = config["Here:ApiKey"])
+    .AddAzureMapsRouting(o => o.ApiKey = config["AzureMaps:ApiKey"]);
 ```
 
 Routes use the HERE Routing API v8 and return the polyline of each leg in `Leg.Waypoints`. With `OptimizeWaypointOrder`, the order is first calculated by the HERE Waypoints Sequence API, which is a second billable transaction; it is skipped when there are fewer than two intermediate stops. The matrix uses the HERE Matrix Routing API v8 in a single region-mode request when all coordinates fit within 400 km, and in chunks of 15 origins otherwise.

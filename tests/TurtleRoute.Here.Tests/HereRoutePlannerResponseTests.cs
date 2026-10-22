@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -79,6 +81,93 @@ namespace TurtleRoute.Here.Tests
         }
 
         [TestMethod]
+        [DataRow(TravelMode.Car, "car")]
+        [DataRow(TravelMode.Truck, "truck")]
+        [DataRow(TravelMode.Bicycle, "bicycle")]
+        [DataRow(TravelMode.Pedestrian, "pedestrian")]
+        public async Task GetRouteAsync_TravelMode_ShouldSendTransportMode(TravelMode travelMode, string transportMode)
+        {
+            StubHandler handler = new StubHandler().On("/routes", Routes(Section(1, 1)));
+
+            await Create(handler).GetRouteAsync(new RoutePlanOptions { TravelMode = travelMode }, Antwerp, Ghent);
+
+            StringAssert.Contains(handler.Last("/routes").RequestUri.Query, $"transportMode={transportMode}");
+        }
+
+        [TestMethod]
+        [DataRow(TravelMode.Van)]
+        [DataRow(TravelMode.Motorcycle)]
+        public async Task GetRouteAsync_UnsupportedTravelMode_ShouldThrowWithoutCallingHere(TravelMode travelMode)
+        {
+            StubHandler handler = new();
+
+            await Assert.ThrowsAsync<NotSupportedException>(() => Create(handler).GetRouteAsync(new RoutePlanOptions { TravelMode = travelMode, OptimizeWaypointOrder = true }, Antwerp, Ghent, Brussels, Leuven));
+
+            Assert.IsEmpty(handler.Requests);
+        }
+
+        [TestMethod]
+        public async Task GetRouteAsync_UnsupportedTravelMode_ShouldFallBackToNextLayer()
+        {
+            StubHandler handler = new();
+            Route fallback = new();
+            RoutePlannerPipeline pipeline = new([Create(handler), new FixedRoutePlanner(fallback)]);
+
+            Route route = await pipeline.GetRouteAsync(new RoutePlanOptions { TravelMode = TravelMode.Van }, Antwerp, Ghent);
+
+            Assert.AreSame(fallback, route);
+            Assert.IsEmpty(handler.Requests);
+        }
+
+        [TestMethod]
+        public async Task GetRouteAsync_FutureDeparture_ShouldSendDepartureTime()
+        {
+            StubHandler handler = new StubHandler().On("/routes", Routes(Section(1, 1)));
+            DateTimeOffset departure = new(DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(2).AddHours(8), DateTimeKind.Unspecified), TimeSpan.FromHours(2));
+
+            await Create(handler).GetRouteAsync(new RoutePlanOptions { DepartAt = departure }, Antwerp, Ghent);
+
+            string query = Uri.UnescapeDataString(handler.Last("/routes").RequestUri.Query);
+            StringAssert.Contains(query, $"departureTime={departure:yyyy-MM-dd'T'HH:mm:ss}+02:00");
+        }
+
+        [TestMethod]
+        public async Task GetRouteAsync_PastDeparture_ShouldDepartNow()
+        {
+            StubHandler handler = new StubHandler().On("/routes", Routes(Section(1, 1)));
+
+            await Create(handler).GetRouteAsync(new RoutePlanOptions { DepartAt = DateTimeOffset.UtcNow.AddHours(-1) }, Antwerp, Ghent);
+
+            Assert.DoesNotContain("departureTime", handler.Last("/routes").RequestUri.Query);
+        }
+
+        [TestMethod]
+        public async Task GetRouteAsync_DepartureWithoutTraffic_ShouldIgnoreDeparture()
+        {
+            StubHandler handler = new StubHandler().On("/routes", Routes(Section(1, 1)));
+
+            await Create(handler).GetRouteAsync(new RoutePlanOptions { UseTrafficData = false, DepartAt = DateTimeOffset.UtcNow.AddDays(1) }, Antwerp, Ghent);
+
+            StringAssert.Contains(handler.Last("/routes").RequestUri.Query, "departureTime=any");
+        }
+
+        [TestMethod]
+        public async Task GetRouteAsync_OptimizeTruckWithDeparture_ShouldSequenceForTruckAtThatTime()
+        {
+            StubHandler handler = new StubHandler()
+                .On("/findsequence2", """{"results":[{"waypoints":[{"id":"start","sequence":0},{"id":"w0","sequence":1},{"id":"w1","sequence":2},{"id":"end","sequence":3}]}]}""")
+                .On("/routes", Routes(Section(1, 1), Section(1, 1), Section(1, 1)));
+            DateTimeOffset departure = new(DateTime.UtcNow.Date.AddDays(2).AddHours(8), TimeSpan.Zero);
+
+            await Create(handler).GetRouteAsync(new RoutePlanOptions { TravelMode = TravelMode.Truck, DepartAt = departure, OptimizeWaypointOrder = true }, Antwerp, Ghent, Brussels, Leuven);
+
+            string sequenceQuery = Uri.UnescapeDataString(handler.Last("/findsequence2").RequestUri.Query);
+            StringAssert.Contains(sequenceQuery, "mode=fastest;truck;traffic:enabled");
+            StringAssert.Contains(sequenceQuery, $"departure={departure:yyyy-MM-dd'T'HH:mm:ss}+00:00");
+            StringAssert.Contains(handler.Last("/routes").RequestUri.Query, "transportMode=truck");
+        }
+
+        [TestMethod]
         public async Task GetRouteAsync_OptimizeWaypointOrder_ShouldRouteInOptimizedOrder()
         {
             // HERE suggests visiting the intermediate stops as Leuven (w2), Ghent (w0), Brussels (w1).
@@ -143,6 +232,19 @@ namespace TurtleRoute.Here.Tests
         [TestMethod]
         public void Constructor_MissingApiKey_ThrowsArgumentNullException()
             => Assert.Throws<ArgumentNullException>(() => new HereRoutePlanner(new HttpClient(), new HereOptions()));
+
+        private class FixedRoutePlanner : IRoutePlanner
+        {
+            private readonly Route _route;
+
+            public FixedRoutePlanner(Route route)
+            {
+                _route = route;
+            }
+
+            public Task<Route> GetRouteAsync(IEnumerable<GeoCoordinate> coordinates, RoutePlanOptions options = null, CancellationToken cancellationToken = default)
+                => Task.FromResult(_route);
+        }
 
         private static HereRoutePlanner Create(StubHandler handler)
             => new(new HttpClient(handler), new HereOptions { ApiKey = "test" });

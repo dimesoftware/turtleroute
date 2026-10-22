@@ -114,7 +114,7 @@ namespace TurtleRoute.OpenCage
         }
 
         private static GeocodeResult ToResult(OpenCageResult result, GeocodeConfidence confidence)
-            => new(new GeoCoordinate(result.Geometry.Lat, result.Geometry.Lng), confidence, ProviderName);
+            => new(new GeoCoordinate(result.Geometry.Lat, result.Geometry.Lng), confidence, ProviderName, result.Formatted);
 
         // Thresholds are a first estimate and should be tuned against real addresses.
         private static GeocodeConfidence ToConfidence(OpenCageResult result)

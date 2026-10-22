@@ -8,6 +8,7 @@ using Azure.Core.GeoJson;
 using Azure.Maps.Routing;
 using Azure.Maps.Routing.Models;
 using AzureRouteType = Azure.Maps.Routing.RouteType;
+using AzureTravelMode = Azure.Maps.Routing.TravelMode;
 
 namespace TurtleRoute.Azure
 {
@@ -31,7 +32,9 @@ namespace TurtleRoute.Azure
             RouteDirectionOptions opts = new()
             {
                 RouteType = ToAzure(route.RouteType),
+                TravelMode = ToAzure(route.TravelMode),
                 UseTrafficData = route.UseTrafficData,
+                DepartAt = route.GetFutureDeparture(), // Azure rejects departure times that are not in the future.
                 ComputeBestWaypointOrder = route.OptimizeWaypointOrder,
             };
 
@@ -63,6 +66,16 @@ namespace TurtleRoute.Azure
 
             return journey;
         }
+
+        internal static AzureTravelMode ToAzure(TravelMode travelMode) => travelMode switch
+        {
+            TravelMode.Van => AzureTravelMode.Van,
+            TravelMode.Truck => AzureTravelMode.Truck,
+            TravelMode.Motorcycle => AzureTravelMode.Motorcycle,
+            TravelMode.Bicycle => AzureTravelMode.Bicycle,
+            TravelMode.Pedestrian => AzureTravelMode.Pedestrian,
+            _ => AzureTravelMode.Car
+        };
 
         internal static AzureRouteType ToAzure(RouteType routeType) => routeType switch
         {

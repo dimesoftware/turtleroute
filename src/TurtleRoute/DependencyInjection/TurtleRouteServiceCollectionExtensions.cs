@@ -9,7 +9,8 @@ namespace Microsoft.Extensions.DependencyInjection
     public static class TurtleRouteServiceCollectionExtensions
     {
         /// <summary>
-        /// Registers <see cref="IGeocoder"/> as a <see cref="GeocodingPipeline"/> over the geocoders added to the returned builder.
+        /// Registers <see cref="IGeocoder"/>, <see cref="IRoutePlanner"/> and <see cref="IRouteMatrix"/> as pipelines over the
+        /// geocoders, route planners and route matrices added to the returned builder.
         /// Calling this more than once returns the same builder.
         /// </summary>
         public static TurtleRouteBuilder AddTurtleRoute(this IServiceCollection services)
@@ -39,6 +40,22 @@ namespace Microsoft.Extensions.DependencyInjection
                     return pipeline;
 
                 return new ShadowGeocoder(pipeline, sp.GetRequiredService<ShadowQueue>(), sp.GetRequiredService<IOptions<ShadowGeocodingOptions>>().Value);
+            });
+
+            services.AddTransient<IRoutePlanner>(sp =>
+            {
+                if (builder.RoutePlanners.Count == 0)
+                    throw new InvalidOperationException("No route planners are registered. Add at least one, e.g. services.AddTurtleRoute().AddHereRouting(...).");
+
+                return new RoutePlannerPipeline(builder.RoutePlanners.Select(factory => factory(sp)), sp.GetService<ILogger<RoutePlannerPipeline>>());
+            });
+
+            services.AddTransient<IRouteMatrix>(sp =>
+            {
+                if (builder.RouteMatrices.Count == 0)
+                    throw new InvalidOperationException("No route matrices are registered. Add at least one, e.g. services.AddTurtleRoute().AddHereRouting(...).");
+
+                return new RouteMatrixPipeline(builder.RouteMatrices.Select(factory => factory(sp)), sp.GetService<ILogger<RouteMatrixPipeline>>());
             });
 
             return builder;

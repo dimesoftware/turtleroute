@@ -18,7 +18,7 @@ if (!string.IsNullOrWhiteSpace(openCageToken))
 string azureToken = builder.Configuration["token"] ?? throw new InvalidOperationException("API key not configured.");
 turtleRoute
     .AddAzureMapsGeocoder(o => o.ApiKey = azureToken)
-    .UseAzureMapsRouting(o => o.ApiKey = azureToken);
+    .AddAzureMapsRouting(o => o.ApiKey = azureToken);
 
 var app = builder.Build();
 

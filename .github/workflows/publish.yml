@@ -1,10 +1,17 @@
 name: Publish to NuGet
 
-# Publishing a GitHub release builds, tests and pushes every package in src/ to nuget.org.
-# The release tag sets the package version: v1.2.0 or 1.2.0, and v1.2.0-beta.1 for a prerelease.
+# Publishing a GitHub release builds, tests and pushes packages from src/ to nuget.org. The release tag says what to publish:
+#
+#   v1.2.0, 1.2.0 or v1.2.0-beta.1                  every package, all at that version
+#   TurtleRoute.OpenCage/v0.2.0 (or /0.2.0)          only that package, at that version
+#
+# A single-package release keeps the versions of the packages it depends on as they are in the repo (see
+# src/Directory.Build.targets), so TurtleRoute.OpenCage 0.2.0 depends on the TurtleRoute version in src/Directory.Build.props.
+# The workflow checks that those dependency versions are on nuget.org before pushing: release the dependency first if not.
 #
 # To try a branch before it is released, run this workflow manually on that branch ("Run workflow", or
-# gh workflow run publish.yml --ref <branch> -f version=1.0.0-pr.12 -f push=true). Manual runs must use a
+# gh workflow run publish.yml --ref <branch> -f version=1.0.0-pr.12 -f push=true, adding -f package=TurtleRoute.OpenCage
+# for a single package). Manual runs must use a
 # prerelease version, so a branch can never publish a stable one, and only push to nuget.org when asked to;
 # otherwise the packages are only kept as a workflow artifact.
 on:
@@ -15,6 +22,10 @@ on:
       version:
         description: Prerelease package version, e.g. 1.0.0-pr.12
         required: true
+      package:
+        description: Only publish this package, e.g. TurtleRoute.OpenCage (empty publishes every package)
+        required: false
+        default: ''
       push:
         description: Push to nuget.org (otherwise only build, test and keep the packages as an artifact)
         type: boolean
@@ -41,31 +52,82 @@ jobs:
         id: version
         env:
           INPUT_VERSION: ${{ inputs.version }}
+          INPUT_PACKAGE: ${{ inputs.package }}
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            PACKAGE="$INPUT_PACKAGE"
             VERSION="${INPUT_VERSION#v}"
             if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9A-Za-z.-]+$ ]]; then
               echo "::error::Manual runs need a prerelease version such as 1.0.0-pr.12, not '$INPUT_VERSION'. Stable versions are published by creating a release."
               exit 1
             fi
           else
-            VERSION="${GITHUB_REF_NAME#v}"
+            # "TurtleRoute.OpenCage/v0.2.0" releases one package; a bare "v1.2.0" releases all of them.
+            if [[ "$GITHUB_REF_NAME" == */* ]]; then
+              PACKAGE="${GITHUB_REF_NAME%%/*}"
+              VERSION="${GITHUB_REF_NAME#*/}"
+            else
+              PACKAGE=""
+              VERSION="$GITHUB_REF_NAME"
+            fi
+            VERSION="${VERSION#v}"
             if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-              echo "::error::Release tag '$GITHUB_REF_NAME' is not a version such as v1.2.0 or v1.2.0-beta.1."
+              echo "::error::Release tag '$GITHUB_REF_NAME' is not a version such as v1.2.0, v1.2.0-beta.1 or TurtleRoute.OpenCage/v0.2.0."
               exit 1
             fi
           fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+          if [[ -n "$PACKAGE" ]]; then
+            if ! [[ "$PACKAGE" =~ ^TurtleRoute(\.[A-Za-z0-9]+)*$ ]] || [[ ! -f "src/$PACKAGE/$PACKAGE.csproj" ]]; then
+              echo "::error::'$PACKAGE' is not a package in src/. Use the project name, e.g. TurtleRoute.OpenCage."
+              exit 1
+            fi
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "package=$PACKAGE" >> "$GITHUB_OUTPUT"
+
+      # A single-package release builds with the repo versions; only its pack step changes that one package's version.
       - name: Build
-        run: dotnet build src/TurtleRoute.slnx -c Release -p:Version=${{ steps.version.outputs.version }} -p:ContinuousIntegrationBuild=true
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          PACKAGE: ${{ steps.version.outputs.package }}
+        run: |
+          if [[ -z "$PACKAGE" ]]; then
+            dotnet build src/TurtleRoute.slnx -c Release -p:Version="$VERSION" -p:ContinuousIntegrationBuild=true
+          else
+            dotnet build src/TurtleRoute.slnx -c Release -p:ContinuousIntegrationBuild=true
+          fi
 
       # Integration tests call live APIs with keys that are not available here.
       - name: Test
         run: dotnet test src/TurtleRoute.slnx -c Release --no-build --filter "TestCategory!=Integration"
 
       - name: Pack
-        run: dotnet pack src/TurtleRoute.slnx -c Release --no-build -o artifacts -p:Version=${{ steps.version.outputs.version }} -p:SymbolPackageFormat=snupkg
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          PACKAGE: ${{ steps.version.outputs.package }}
+        run: |
+          if [[ -z "$PACKAGE" ]]; then
+            dotnet pack src/TurtleRoute.slnx -c Release --no-build -o artifacts -p:Version="$VERSION" -p:SymbolPackageFormat=snupkg
+          else
+            dotnet pack "src/$PACKAGE/$PACKAGE.csproj" -c Release --no-build -o artifacts -p:ReleasePackage="$PACKAGE" -p:ReleaseVersion="$VERSION" -p:SymbolPackageFormat=snupkg
+          fi
+          ls artifacts
+
+      # A vendor package released on its own depends on TurtleRoute at the version in the repo, so that version must
+      # already be on nuget.org. Otherwise nobody could install the vendor package.
+      - name: Check TurtleRoute is published
+        if: steps.version.outputs.package != '' && steps.version.outputs.package != 'TurtleRoute'
+        run: |
+          CORE_VERSION=$(dotnet msbuild src/TurtleRoute/TurtleRoute.csproj -getProperty:Version)
+
+          # nuget.org answers 404 for a version that was never published. Its URLs are lowercase.
+          URL="https://api.nuget.org/v3-flatcontainer/turtleroute/${CORE_VERSION,,}/turtleroute.nuspec"
+          if ! curl --silent --fail --output /dev/null "$URL"; then
+            echo "::error::This package depends on TurtleRoute $CORE_VERSION, which is not on nuget.org. Release TurtleRoute $CORE_VERSION first."
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
