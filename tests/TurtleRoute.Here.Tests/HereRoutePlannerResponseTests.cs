@@ -188,8 +188,8 @@ namespace TurtleRoute.Here.Tests
             int brussels = routeQuery.IndexOf("via=50.846557,4.351697", StringComparison.Ordinal);
             Assert.IsTrue(leuven < ghent && ghent < brussels, routeQuery);
 
-            // In the original order of the stops, as Azure Maps lists them.
-            CollectionAssert.AreEqual(new[] { new RouteRevision(0, 1), new RouteRevision(1, 2), new RouteRevision(2, 0) }, route.Revisions);
+            // As Azure Maps returns them: in visiting order, each pointing at the stop as provided (Leuven w2, Ghent w0, Brussels w1).
+            CollectionAssert.AreEqual(new[] { new RouteRevision(0, 2), new RouteRevision(1, 0), new RouteRevision(2, 1) }, route.Revisions);
         }
 
         [TestMethod]

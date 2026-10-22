@@ -71,6 +71,14 @@ namespace TurtleRoute.Azure.Tests
         }
 
         [TestMethod]
+        public Task Router_Optimize_RevisionsShouldFollowTheLegs()
+            => RoutePlannerContract.RevisionsShouldFollowTheLegsAsync(new AzureRoutePlanner(TestSettings.AzureMapsToken));
+
+        [TestMethod]
+        public Task Router_OptimizeSingleStop_ShouldHaveOneRevision()
+            => RoutePlannerContract.SingleStopShouldHaveOneRevisionAsync(new AzureRoutePlanner(TestSettings.AzureMapsToken));
+
+        [TestMethod]
         public async Task Router_Optimize()
         {
             AzureRoutePlanner api = new(TestSettings.AzureMapsToken);

@@ -46,7 +46,8 @@ namespace TurtleRoute.Here
             if (plan.OptimizeWaypointOrder && stops.Count > 3)
             {
                 List<int> order = await GetWaypointOrderAsync(stops, plan, cancellationToken);
-                revisions = [.. order.Select((provided, optimized) => new RouteRevision(provided, optimized)).OrderBy(revision => revision.OriginalIndex)];
+                // Azure Maps' convention: the n-th revision is the n-th stop visited, and its NewIndex is that stop's index as provided.
+                revisions = [.. order.Select((provided, position) => new RouteRevision(position, provided))];
                 stops = [stops[0], .. order.Select(i => stops[i + 1]), stops[^1]];
             }
             else if (plan.OptimizeWaypointOrder && stops.Count == 3)

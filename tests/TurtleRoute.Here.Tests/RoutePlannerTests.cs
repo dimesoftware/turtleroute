@@ -43,6 +43,14 @@ namespace TurtleRoute.Here.Tests
             Assert.HasCount(2, route.Legs);
         }
 
+        [TestMethod]
+        public Task Router_Optimize_RevisionsShouldFollowTheLegs()
+            => RoutePlannerContract.RevisionsShouldFollowTheLegsAsync(Create());
+
+        [TestMethod]
+        public Task Router_OptimizeSingleStop_ShouldHaveOneRevision()
+            => RoutePlannerContract.SingleStopShouldHaveOneRevisionAsync(Create());
+
         private static HereRoutePlanner Create() => new(new HttpClient(), new HereOptions { ApiKey = TestSettings.HereToken });
     }
 }
