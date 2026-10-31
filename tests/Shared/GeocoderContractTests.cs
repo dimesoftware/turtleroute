@@ -37,9 +37,9 @@ namespace TurtleRoute.Tests
         }
 
         [TestMethod]
-        [DataRow("1 Avenue du Château, 62124, Vélu", "FR", 2.972791, 50.104375)]
-        [DataRow("Vélu, 1 Avenue du Château, 62124", "FR", 2.972791, 50.104375)]
-        [DataRow("1 Avenue du Château, Vélu, 62124", "FR", 2.972791, 50.104375)]
+        [DataRow("1 Rue du Château, 62124, Vélu", "FR", 2.972791, 50.104375)]
+        [DataRow("Vélu, 1 Rue du Château, 62124", "FR", 2.972791, 50.104375)]
+        [DataRow("1 Rue du Château, Vélu, 62124", "FR", 2.972791, 50.104375)]
         public async Task Geocoding_GetAddressByText_ShouldReturnCorrectCoordinates(string address, string country, double x, double y)
         {
             GeocodeResult result = await CreateGeocoder().GeocodeAsync(address, country);

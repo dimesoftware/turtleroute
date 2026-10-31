@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading;
@@ -15,6 +18,9 @@ namespace TurtleRoute.OpenCage
     public class OpenCageGeocoder : IGeocoder
     {
         public const string ProviderName = "OpenCage";
+
+        // OpenCage asks clients to identify themselves with a version.
+        private static readonly ProductInfoHeaderValue UserAgent = new("TurtleRoute", typeof(OpenCageGeocoder).Assembly.GetName().Version?.ToString(3));
 
         private readonly HttpClient _httpClient;
         private readonly OpenCageOptions _options;
@@ -35,19 +41,23 @@ namespace TurtleRoute.OpenCage
         {
             ArgumentNullException.ThrowIfNull(address);
 
-            // OpenCage reads addresses best in their local postal format, e.g. "Katwilgweg 2, 2050 Antwerpen, BE".
-            string query = Join(", ", Join(" ", address.Street, address.StreetNo), Join(" ", address.ZipCode, address.City), address.State, address.Country);
-
-            OpenCageResult result = await SearchAsync(query, address.Country, cancellationToken);
-            if (result?.Geometry == null)
+            // Formatted as https://opencagedata.com/guides/how-to-format-your-geocoding-query recommends, e.g. "Katwilgweg 2, 2050, Antwerpen, Belgium".
+            // The country goes in by name, as an ISO code in the query is ambiguous.
+            string query = Join(", ", Join(" ", address.Street, address.StreetNo), address.ZipCode, address.City, address.State, ToCountryName(address.Country));
+            if (query.Length < 2)
                 return null;
+
+            List<OpenCageResult> results = await SearchAsync(query, address.Country, cancellationToken);
+
+            // A same-named street in another city may rank first, and a postcode area is only the last resort.
+            OpenCageResult result = results.Where(r => r.Matches(address)).OrderBy(r => r.Type == "postcode").FirstOrDefault();
+
+            if (result == null)
+                return results.Count == 0 ? null : ToResult(results[0], GeocodeConfidence.Low);
 
             GeocodeConfidence confidence = ToConfidence(result);
 
-            // A match without a road means the street was not found and OpenCage fell back to the postcode or city.
-            if (!string.IsNullOrWhiteSpace(address.Street) && !result.Components.ContainsKey("road"))
-                confidence = GeocodeConfidence.Low;
-            else if (!string.IsNullOrWhiteSpace(address.StreetNo) && !result.Components.ContainsKey("house_number") && confidence == GeocodeConfidence.High)
+            if (!string.IsNullOrWhiteSpace(address.StreetNo) && result.HouseNumber == null && confidence == GeocodeConfidence.High)
                 confidence = GeocodeConfidence.Medium;
 
             return ToResult(result, confidence);
@@ -58,23 +68,30 @@ namespace TurtleRoute.OpenCage
             if (string.IsNullOrWhiteSpace(address))
                 throw new ArgumentNullException(nameof(address));
 
-            // An ISO 3166-1 alpha-2 code restricts the search to that country; anything else is added to the query.
-            string query = ToCountryCode(countryFilter) == null && !string.IsNullOrWhiteSpace(countryFilter) ? $"{address}, {countryFilter}" : address;
-
-            OpenCageResult result = await SearchAsync(query, countryFilter, cancellationToken);
-            if (result?.Geometry == null)
+            if (address.Trim().Length < 2)
                 return null;
+
+            // An ISO 3166-1 alpha-2 code restricts the search to that country; anything else is added to the query.
+            string text = address.Trim().ReplaceLineEndings(", ");
+            string query = ToCountryCode(countryFilter) == null && !string.IsNullOrWhiteSpace(countryFilter) ? $"{text}, {countryFilter}" : text;
+
+            List<OpenCageResult> results = await SearchAsync(query, countryFilter, cancellationToken);
+
+            // OpenCage returns a match even for gibberish.
+            OpenCageResult result = results.Where(r => r.Matches(address)).OrderBy(r => r.Type == "postcode").FirstOrDefault();
+            if (result == null)
+                return results.Count == 0 ? null : ToResult(results[0], GeocodeConfidence.Low);
 
             return ToResult(result, ToConfidence(result));
         }
 
-        private async Task<OpenCageResult> SearchAsync(string query, string country, CancellationToken cancellationToken)
+        private async Task<List<OpenCageResult>> SearchAsync(string query, string country, CancellationToken cancellationToken)
         {
             Dictionary<string, string> parameters = new()
             {
                 ["q"] = query,
                 ["key"] = _options.ApiKey,
-                ["limit"] = "1",
+                ["limit"] = "5", // the right match is not always ranked first
                 ["no_annotations"] = "1"
             };
 
@@ -88,7 +105,14 @@ namespace TurtleRoute.OpenCage
             string queryString = string.Join("&", parameters.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value)}"));
             Uri requestUri = new(_options.BaseAddress, $"json?{queryString}");
 
-            using HttpResponseMessage response = await _httpClient.GetAsync(requestUri, cancellationToken);
+            using HttpRequestMessage request = new(HttpMethod.Get, requestUri);
+            request.Headers.UserAgent.Add(UserAgent);
+
+            using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+
+            // 400 means OpenCage cannot read the query, e.g. a URL: nothing to find, not an outage.
+            if (response.StatusCode == HttpStatusCode.BadRequest)
+                return [];
 
             if (!response.IsSuccessStatusCode)
             {
@@ -98,7 +122,7 @@ namespace TurtleRoute.OpenCage
             }
 
             OpenCageResponse body = await response.Content.ReadFromJsonAsync<OpenCageResponse>(cancellationToken);
-            return body?.Results?.FirstOrDefault();
+            return [.. (body?.Results ?? []).Where(r => r?.Geometry != null)];
         }
 
         private static async Task<OpenCageResponse> TryReadAsync(HttpResponseMessage response, CancellationToken cancellationToken)
@@ -119,9 +143,12 @@ namespace TurtleRoute.OpenCage
         // Thresholds are a first estimate and should be tuned against real addresses.
         private static GeocodeConfidence ToConfidence(OpenCageResult result)
         {
-            // When OpenCage cannot place the address it falls back to the centre of the postcode area,
-            // which can still score 7 (under 5 km) but is never an address match.
-            if (result.Components.TryGetValue("_type", out JsonElement type) && type.ValueKind == JsonValueKind.String && type.GetString() == "postcode")
+            // A postcode area is never the address itself.
+            // A UK or Dutch postcode covers a few houses (score 10), a German or Belgian one a whole town (score 7).
+            if (result.Type == "postcode")
+                return result.Confidence >= 9 ? GeocodeConfidence.Medium : GeocodeConfidence.Low;
+
+            if (result.Type is "partial_postcode" or "terminated_postcode")
                 return GeocodeConfidence.Low;
 
             if (result.Confidence >= 9) return GeocodeConfidence.High;   // under 500 m
@@ -137,6 +164,25 @@ namespace TurtleRoute.OpenCage
             string code = country.Trim().ToLowerInvariant();
             return code == "uk" ? "gb" : code;
         }
+
+        // The English name for an ISO code, e.g. "Belgium" for "BE", or null when unknown.
+        private static string ToCountryName(string country)
+        {
+            string code = ToCountryCode(country);
+            if (code == null)
+                return country;
+
+            try
+            {
+                return new RegionInfo(code).EnglishName;
+            }
+            catch (ArgumentException)
+            {
+                return null;
+            }
+        }
+
+
 
         private static string Join(string separator, params string[] parts)
             => string.Join(separator, parts.Where(p => !string.IsNullOrWhiteSpace(p)));

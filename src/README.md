@@ -34,6 +34,8 @@ GeocodeResult? result = await geocoder.GeocodeAsync(new Address("Katwilgweg", "2
 
 The pipeline returns `null` when no layer produced an acceptable result, and throws a `GeocodingException` only when every layer failed, so callers can tell "address not found" apart from "try again later".
 
+OpenCage returns its best text match even when it lies elsewhere, such as a same-named street in another city or a building somewhere in the country for random letters. `OpenCageGeocoder` therefore takes the first of its top 5 results on the requested street and in the requested postcode or city, and scores the result `Low` when none is, so the pipeline falls back. It asks for local names (`Language` defaults to `"native"`) to compare them with the address.
+
 ### Failures, timeouts and retries
 
 A failing layer is logged once with its exception; while it keeps failing, one summary line per layer is logged every 5 minutes (e.g. `OpenCageGeocoder failed 1482 more times in the last 00:05:00 ... Last error: OpenCage returned 503`), and the first call that succeeds again logs that it recovered. To change the interval, register `new LayerFailureLog(TimeSpan.FromMinutes(1))` as a singleton before `AddTurtleRoute()`.
