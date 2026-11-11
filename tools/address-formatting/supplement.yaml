@@ -1,0 +1,7 @@
+# Abbreviations missing upstream, in the same format, per language: input for Generate.cs.
+# To be proposed to OpenCageData/address-formatting; remove an entry once it is there.
+fr:
+     Boulevard: Bd
+     Chaussée: Chée
+nl:
+     Steenweg: Stwg

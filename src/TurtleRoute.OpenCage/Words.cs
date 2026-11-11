@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -39,6 +40,23 @@ namespace TurtleRoute.OpenCage
             for (int start = 0; part.Length > 0 && start + part.Length <= words.Length; start++)
             {
                 if (part.SequenceEqual(words.Skip(start).Take(part.Length)))
+                    return start;
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// Like <see cref="IndexOf(string[], string[])"/>, comparing words with <paramref name="same"/>.
+        /// </summary>
+        public static int IndexOf(IReadOnlyList<string> words, string[] part, Func<string, string, bool> same, int from = 0)
+        {
+            for (int start = from; part.Length > 0 && start + part.Length <= words.Count; start++)
+            {
+                int i = 0;
+                while (i < part.Length && same(words[start + i], part[i]))
+                    i++;
+                if (i == part.Length)
                     return start;
             }
 
