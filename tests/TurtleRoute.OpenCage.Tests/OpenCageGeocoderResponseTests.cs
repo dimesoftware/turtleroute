@@ -205,10 +205,8 @@ namespace TurtleRoute.OpenCage.Tests
             Assert.AreEqual(GeocodeConfidence.High, result.Confidence);
         }
 
-        // Only accents, case and punctuation are ignored, so these fall back to the next layer.
+        // Another street type, another postcode or another script fall back to the next layer.
         [TestMethod]
-        [DataRow("Av. Paulista", "1", "", "São Paulo", """{"_type":"building","road":"Avenida Paulista","house_number":"1","city":"São Paulo"}""")]
-        [DataRow("Main St", "1", "", "Springfield", """{"_type":"building","road":"Main Street","house_number":"1","city":"Springfield"}""")]
         [DataRow("Avenue du Château", "1", "", "Vélu", """{"_type":"building","road":"Rue du Château","house_number":"1","village":"Vélu"}""")]
         [DataRow("Kerkstraat", "1", "9000", "Gent", """{"_type":"building","road":"Kerkstraat","house_number":"1","city":"Gent","postcode":"9050"}""")]
         [DataRow("Ermou", "10", "", "Athina", """{"_type":"building","road":"Ερμού","house_number":"10","city":"Αθήνα"}""")]
@@ -460,19 +458,22 @@ namespace TurtleRoute.OpenCage.Tests
             Assert.AreEqual(GeocodeConfidence.High, result.Confidence);
         }
 
+        // Abbreviations are written out when unambiguous in the country's languages; with a vowel only when written with their dot ("Burg" is also a word).
         [TestMethod]
-        [DataRow("Av. Louise 149, 1050 Bruxelles", "Avenue Louise 149, 1050 Bruxelles")]
-        [DataRow("Chée de Louvain 10, 1210 Saint-Josse", "Chaussée de Louvain 10, 1210 Saint-Josse")]
-        [DataRow("bd anspach 10, Bruxelles", "Boulevard anspach 10, Bruxelles")]
-        [DataRow("Clews Rd, Redditch", "Clews Road, Redditch")]
-        [DataRow("Dr. Willemsstraat 1, Gent", "Dr. Willemsstraat 1, Gent")] // "Dr." is a title as often as "Drive"
-        [DataRow("Avenue Louise 149, 1050 Bruxelles", "Avenue Louise 149, 1050 Bruxelles")]
-        [DataRow("Ravel 1, Bdx", "Ravel 1, Bdx")]
-        public async Task GeocodeAsync_ShouldWriteOutStreetTypeAbbreviationsInTheQuery(string input, string sent)
+        [DataRow("Av. Louise 149, 1050 Bruxelles", "BE", "Avenue Louise 149, 1050 Bruxelles")]
+        [DataRow("bd anspach 10, Bruxelles", "BE", "Boulevard anspach 10, Bruxelles")]
+        [DataRow("Chée. de Louvain 10, Saint-Josse", "BE", "Chaussée de Louvain 10, Saint-Josse")]
+        [DataRow("Chée de Louvain 10, Saint-Josse", "BE", "Chée de Louvain 10, Saint-Josse")]
+        [DataRow("Clews Rd, Redditch", "GB", "Clews Road, Redditch")]
+        [DataRow("Clews Rd, Redditch", "BE", "Clews Rd, Redditch")]                 // "Rd" is English
+        [DataRow("Dr. Willemsstraat 1, Gent", "BE", "Dr. Willemsstraat 1, Gent")]   // Dutch "Dr" is both "Docter" and "Dokter"
+        [DataRow("Avenue Louise 149, 1050 Bruxelles", "BE", "Avenue Louise 149, 1050 Bruxelles")]
+        [DataRow("Ravel 1, Bdx", "BE", "Ravel 1, Bdx")]
+        public async Task GeocodeAsync_ShouldWriteOutStreetTypeAbbreviationsInTheQuery(string input, string country, string sent)
         {
             StubHandler handler = StubHandler.Json(HttpStatusCode.OK, Result(10, """{"_type":"city","city":"Bruxelles"}"""));
 
-            await Create(handler).GeocodeAsync(input, "BE");
+            await Create(handler).GeocodeAsync(input, country);
 
             StringAssert.Contains(Uri.UnescapeDataString(handler.LastRequest.RequestUri.Query), $"q={sent}&");
         }
@@ -486,6 +487,30 @@ namespace TurtleRoute.OpenCage.Tests
 
             StringAssert.Contains(Uri.UnescapeDataString(handler.LastRequest.RequestUri.Query), "q=Avenue Louise 149, 1050, Bruxelles, Belgium&");
             Assert.AreEqual(GeocodeConfidence.High, result.Confidence);
+        }
+
+        // Abbreviations in the language of the country the match lies in, from OpenCage's address-formatting data.
+        [TestMethod]
+        [DataRow("Av. Paulista", "São Paulo", """{"_type":"building","road":"Avenida Paulista","house_number":"1","city":"São Paulo","country_code":"br"}""")]
+        [DataRow("Main St", "Springfield", """{"_type":"building","road":"Main Street","house_number":"1","city":"Springfield","country_code":"us"}""")]
+        public async Task GeocodeAsync_AbbreviationInTheMatchCountry_ShouldBeAccepted(string street, string city, string components)
+        {
+            StubHandler handler = StubHandler.Json(HttpStatusCode.OK, Result(10, components));
+
+            GeocodeResult result = await Create(handler).GeocodeAsync(new Address(street, "1", "", city, "", ""));
+
+            Assert.AreEqual(GeocodeConfidence.High, result.Confidence);
+        }
+
+        // "Av" is Portuguese for "Avenida" but not French: in Belgium it only means "Avenue".
+        [TestMethod]
+        public async Task GeocodeAsync_AbbreviationOfAnotherLanguage_ShouldStayLow()
+        {
+            StubHandler handler = StubHandler.Json(HttpStatusCode.OK, Result(10, """{"_type":"building","road":"Avenida Paulista","house_number":"1","city":"Bruxelles","country_code":"be"}"""));
+
+            GeocodeResult result = await Create(handler).GeocodeAsync(new Address("Av. Paulista", "1", "", "Bruxelles", "", "BE"));
+
+            Assert.AreEqual(GeocodeConfidence.Low, result.Confidence);
         }
 
         // Tolerance must not turn a different street into a match.

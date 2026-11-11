@@ -12,4 +12,8 @@
 		<ProjectReference Include="..\TurtleRoute\TurtleRoute.csproj" />
 	</ItemGroup>
 
+  <ItemGroup>
+    <!-- OpenCage's address-formatting data (see AddressFormatting/README.md); LogicalName keeps resource names independent of the folder separator. -->
+    <EmbeddedResource Include="AddressFormatting\**\*.yaml" LogicalName="AddressFormatting/%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

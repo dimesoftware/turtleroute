@@ -43,14 +43,15 @@ namespace TurtleRoute.OpenCage
 
             // Formatted as https://opencagedata.com/guides/how-to-format-your-geocoding-query recommends, e.g. "Katwilgweg 2, 2050, Antwerpen, Belgium".
             // The country goes in by name, as an ISO code in the query is ambiguous.
-            string query = Join(", ", Join(" ", Words.ExpandAbbreviations(address.Street), address.StreetNo), address.ZipCode, address.City, address.State, ToCountryName(address.Country));
+            StreetAbbreviations abbreviations = StreetAbbreviations.For(ToCountryCode(address.Country));
+            string query = Join(", ", Join(" ", abbreviations.Expand(address.Street), address.StreetNo), address.ZipCode, address.City, address.State, ToCountryName(address.Country));
             if (query.Length < 2)
                 return null;
 
             List<OpenCageResult> results = await SearchAsync(query, address.Country, cancellationToken);
 
             // A same-named street in another city may rank first, and a postcode area is only the last resort.
-            OpenCageResult result = results.Where(r => r.Matches(address)).OrderBy(r => r.Type == "postcode").FirstOrDefault();
+            OpenCageResult result = results.Where(r => r.Matches(address, For(r, abbreviations))).OrderBy(r => r.Type == "postcode").FirstOrDefault();
 
             if (result == null)
                 return results.Count == 0 ? null : ToResult(results[0], GeocodeConfidence.Low);
@@ -72,13 +73,14 @@ namespace TurtleRoute.OpenCage
                 return null;
 
             // An ISO 3166-1 alpha-2 code restricts the search to that country; anything else is added to the query.
-            string text = Words.ExpandAbbreviations(address.Trim().ReplaceLineEndings(", "));
+            StreetAbbreviations abbreviations = StreetAbbreviations.For(ToCountryCode(countryFilter));
+            string text = abbreviations.Expand(address.Trim().ReplaceLineEndings(", "));
             string query = ToCountryCode(countryFilter) == null && !string.IsNullOrWhiteSpace(countryFilter) ? $"{text}, {countryFilter}" : text;
 
             List<OpenCageResult> results = await SearchAsync(query, countryFilter, cancellationToken);
 
             // OpenCage returns a match even for gibberish.
-            OpenCageResult result = results.Where(r => r.Matches(address)).OrderBy(r => r.Type == "postcode").FirstOrDefault();
+            OpenCageResult result = results.Where(r => r.Matches(address, For(r, abbreviations))).OrderBy(r => r.Type == "postcode").FirstOrDefault();
             if (result == null)
                 return results.Count == 0 ? null : ToResult(results[0], GeocodeConfidence.Low);
 
@@ -136,6 +138,10 @@ namespace TurtleRoute.OpenCage
                 return null;
             }
         }
+
+        // A match is compared in the languages of the country it lies in, as a free-text query may not name its country.
+        private static StreetAbbreviations For(OpenCageResult result, StreetAbbreviations requested)
+            => string.IsNullOrWhiteSpace(result.CountryCode) ? requested : StreetAbbreviations.For(result.CountryCode);
 
         private static GeocodeResult ToResult(OpenCageResult result, GeocodeConfidence confidence)
             => new(new GeoCoordinate(result.Geometry.Lat, result.Geometry.Lng), confidence, ProviderName, result.Formatted);

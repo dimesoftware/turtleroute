@@ -50,15 +50,15 @@ namespace TurtleRoute.OpenCage
 
         private IEnumerable<string[]> StreetNames => Names(Street);
 
-        // Street names as compared with the query, in canonical words (see Words.IndexOfStreet).
-        private IEnumerable<string[]> CanonicalStreetNames => StreetNames.Select(Words.Canonical);
-
         private IEnumerable<string[]> Localities => LocalityKeys.SelectMany(key => Names(Get(key)));
+
+        [JsonIgnore]
+        public string CountryCode => Get("country_code");
 
         /// <summary>
         /// Whether the match is on the requested street and in the requested postcode or city.
         /// </summary>
-        public bool Matches(Address address)
+        public bool Matches(Address address, StreetAbbreviations abbreviations)
         {
             string[] zip = Words.Split(address.ZipCode);
             string[] postcode = Words.Split(Postcode);
@@ -70,8 +70,9 @@ namespace TurtleRoute.OpenCage
             // The street field often holds more than the street, e.g. "Suite 400, 1000 Broadway".
             // In the countryside it may name a hamlet instead, e.g. "Dünninghausen 10, 59269 Beckum".
             string[] street = Words.Split(address.Street);
+            int[] segments = new int[street.Length];
             bool onStreet = Street != null
-                ? CanonicalStreetNames.Any(name => Words.IndexOfStreet(Words.Canonical(street), name, out _) >= 0)
+                ? StreetNames.Any(name => FindStreet(street, segments, name, abbreviations, out _) >= 0)
                 : Localities.Any(name => Words.IndexOf(street, name) >= 0);
             if (street.Length > 0 && !onStreet)
                 return false;
@@ -89,14 +90,17 @@ namespace TurtleRoute.OpenCage
         /// <summary>
         /// Whether the free-text query names the street and the city or postcode of the match, and nothing it did not find.
         /// </summary>
-        public bool Matches(string query)
+        public bool Matches(string query, StreetAbbreviations abbreviations)
         {
-            List<string> words = [.. Words.Split(query)];
+            // The comma-separated part each word comes from, so a street is only recognised by the words around it in its own part.
+            string[] parts = query.Split(',');
+            int[] segments = [.. parts.SelectMany((part, i) => Words.Split(part).Select(_ => i))];
+            List<string> words = [.. parts.SelectMany(Words.Split)];
 
             if (Type == "postcode")
                 return RemovePostcode(words);
 
-            if (Street != null && !CanonicalStreetNames.Any(street => RemoveStreet(words, street)))
+            if (Street != null && !StreetNames.Any(street => RemoveStreet(words, segments, street, abbreviations)))
                 return false;
 
             bool inLocality = false;
@@ -116,11 +120,49 @@ namespace TurtleRoute.OpenCage
             return words.All(word => word.All(char.IsDigit));
         }
 
-        // Also removes the house number next to the street, so it is not taken for a postcode.
-        // The street is looked up in canonical words, which line up one to one with the query words.
-        private static bool RemoveStreet(List<string> words, string[] street)
+        /// <summary>
+        /// Where the street is named in the query words, and how many words it spans, or -1. Abbreviations count as the full word ("Kerkstr." is "Kerkstraat").
+        /// The query may leave out the leading words of the name, such as the street type ("Champs-Elysees" for "Avenue des Champs-Elysees"),
+        /// but then nothing but a house number may stand next to it in its comma-separated part: "Avenue du Chateau" is not "Rue du Chateau".
+        /// </summary>
+        private static int FindStreet(IReadOnlyList<string> words, int[] segments, string[] street, StreetAbbreviations abbreviations, out int length)
         {
-            int start = Words.IndexOfStreet(Words.Canonical([.. words]), street, out int length);
+            length = street.Length;
+            int start = Words.IndexOf(words, street, abbreviations.Same);
+            if (start >= 0)
+                return start;
+
+            for (int skip = 1; skip < street.Length; skip++)
+            {
+                string[] tail = street[skip..];
+                // The rest must still name the street, not just "de" or a letter.
+                if (tail.Sum(word => word.Length) < 4)
+                    break;
+
+                for (start = Words.IndexOf(words, tail, abbreviations.Same); start >= 0; start = Words.IndexOf(words, tail, abbreviations.Same, start + 1))
+                {
+                    int end = start + tail.Length;
+                    bool alone = Enumerable.Range(0, words.Count)
+                        .Where(i => (i < start || i >= end) && segments[i] == segments[start])
+                        .All(i => IsHouseNumber(words[i]));
+                    if (alone)
+                    {
+                        length = tail.Length;
+                        return start;
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+        // "12", "12a" or the "D" of "32 D".
+        private static bool IsHouseNumber(string word) => word.Any(char.IsDigit) || word.Length == 1;
+
+        // Also removes the house number next to the street, so it is not taken for a postcode.
+        private static bool RemoveStreet(List<string> words, int[] segments, string[] street, StreetAbbreviations abbreviations)
+        {
+            int start = FindStreet(words, segments, street, abbreviations, out int length);
             if (start < 0)
                 return false;
 
