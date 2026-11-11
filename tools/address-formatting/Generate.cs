@@ -22,7 +22,7 @@ string Raw(string path) => $"https://raw.githubusercontent.com/OpenCageData/addr
 string listing = await http.GetStringAsync($"https://api.github.com/repos/OpenCageData/address-formatting/contents/conf/abbreviations?ref={commit}");
 string[] languages = [.. Regex.Matches(listing, "\"name\":\\s*\"([a-z]+)\\.yaml\"").Select(m => m.Groups[1].Value).Order()];
 
-// Road abbreviations per language, upstream first, then the supplement for what is missing there.
+// Upstream road abbreviations, then the supplement.
 SortedDictionary<string, List<(string Long, string Short)>> roads = [];
 foreach (string language in languages)
 {

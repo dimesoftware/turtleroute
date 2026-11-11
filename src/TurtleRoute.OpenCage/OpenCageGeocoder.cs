@@ -139,7 +139,7 @@ namespace TurtleRoute.OpenCage
             }
         }
 
-        // A match is compared in the languages of the country it lies in, as a free-text query may not name its country.
+        // The languages of the match's country, as a free-text query may not name one.
         private static StreetAbbreviations For(OpenCageResult result, StreetAbbreviations requested)
             => string.IsNullOrWhiteSpace(result.CountryCode) ? requested : StreetAbbreviations.For(result.CountryCode);
 

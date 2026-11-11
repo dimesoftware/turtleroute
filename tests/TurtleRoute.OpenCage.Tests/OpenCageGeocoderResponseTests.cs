@@ -427,7 +427,7 @@ namespace TurtleRoute.OpenCage.Tests
             Assert.DoesNotContain("countrycode", query);
         }
 
-        // Street names written differently from OpenCage's: abbreviations, glued suffixes and a street type the query leaves out.
+        // Abbreviations, compounds and a missing street type.
         [TestMethod]
         [DataRow("Kerkstr. 1, 9000 Gent", "Kerkstraat", "Gent", "9000")]
         [DataRow("Hauptstr. 5, 10115 Berlin", "Hauptstraße", "Berlin", "10115")]
@@ -458,7 +458,7 @@ namespace TurtleRoute.OpenCage.Tests
             Assert.AreEqual(GeocodeConfidence.High, result.Confidence);
         }
 
-        // Abbreviations are written out when unambiguous in the country's languages; with a vowel only when written with their dot ("Burg" is also a word).
+        // Only unambiguous ones, and with a vowel only when written with a dot.
         [TestMethod]
         [DataRow("Av. Louise 149, 1050 Bruxelles", "BE", "Avenue Louise 149, 1050 Bruxelles")]
         [DataRow("bd anspach 10, Bruxelles", "BE", "Boulevard anspach 10, Bruxelles")]
@@ -489,7 +489,7 @@ namespace TurtleRoute.OpenCage.Tests
             Assert.AreEqual(GeocodeConfidence.High, result.Confidence);
         }
 
-        // Abbreviations in the language of the country the match lies in, from OpenCage's address-formatting data.
+        // In the language of the match's country.
         [TestMethod]
         [DataRow("Av. Paulista", "São Paulo", """{"_type":"building","road":"Avenida Paulista","house_number":"1","city":"São Paulo","country_code":"br"}""")]
         [DataRow("Main St", "Springfield", """{"_type":"building","road":"Main Street","house_number":"1","city":"Springfield","country_code":"us"}""")]
@@ -502,7 +502,7 @@ namespace TurtleRoute.OpenCage.Tests
             Assert.AreEqual(GeocodeConfidence.High, result.Confidence);
         }
 
-        // "Av" is Portuguese for "Avenida" but not French: in Belgium it only means "Avenue".
+        // "Av" is "Avenida" in Portuguese, not in Belgium.
         [TestMethod]
         public async Task GeocodeAsync_AbbreviationOfAnotherLanguage_ShouldStayLow()
         {

@@ -47,7 +47,7 @@ namespace TurtleRoute.OpenCage
         }
 
         /// <summary>
-        /// The position of <paramref name="part"/> as consecutive words in <paramref name="words"/> from <paramref name="from"/> on, comparing words with <paramref name="same"/>, or -1.
+        /// Like <see cref="IndexOf(string[], string[])"/>, comparing words with <paramref name="same"/>.
         /// </summary>
         public static int IndexOf(IReadOnlyList<string> words, string[] part, Func<string, string, bool> same, int from = 0)
         {

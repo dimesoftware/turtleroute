@@ -7,8 +7,8 @@ using System.Text.RegularExpressions;
 namespace TurtleRoute.OpenCage
 {
     /// <summary>
-    /// Street abbreviations in the languages of a country, from OpenCage's address-formatting data (<see cref="AddressFormattingData"/>).
-    /// "Dr" is "Drive" in Britain and "Dokter" in the Netherlands, so the country decides which apply.
+    /// Street abbreviations in the languages of a country, from <see cref="AddressFormattingData"/>.
+    /// "Dr" is "Drive" in Britain but "Dokter" in the Netherlands.
     /// </summary>
     internal sealed class StreetAbbreviations
     {
@@ -16,14 +16,14 @@ namespace TurtleRoute.OpenCage
 
         private static readonly Regex Token = new(@"[\p{L}\p{N}]+(\.)?", RegexOptions.CultureInvariant);
 
-        // Normalized word to the words it stands for or is short for, e.g. "str" to {"straat"} and "straat" to {"str"}.
+        // "str" to {"straat"}, and back.
         private readonly Dictionary<string, HashSet<string>> _equivalents = [];
 
-        // Pairs whose full word may end a compound, e.g. ("straat", "str") for "kerkstraat" and "kerkstr".
-        // Four letters or more, so a short word such as "kort" does not match inside names.
+        // For compounds such as "kerkstr" for "kerkstraat".
+        // Four letters or more, so "kort" does not match inside names.
         private readonly List<(string Long, string Short)> _suffixes = [];
 
-        // Normalized abbreviation to the full word as written, only where it stands for one word.
+        // Only abbreviations that stand for one word.
         private readonly Dictionary<string, string> _expansions;
 
         private StreetAbbreviations(IEnumerable<string> languages)
@@ -52,14 +52,14 @@ namespace TurtleRoute.OpenCage
         }
 
         /// <summary>
-        /// The abbreviations for a country (ISO 3166-1 alpha-2), or of all languages when the country is unknown.
+        /// All languages when the country is unknown.
         /// </summary>
         public static StreetAbbreviations For(string countryCode)
             => ByCountry.GetOrAdd(countryCode?.Trim() ?? "", code => new StreetAbbreviations(
                 AddressFormattingData.CountryLanguages.TryGetValue(code.ToUpperInvariant(), out string[] languages) ? languages : AddressFormattingData.RoadAbbreviations.Keys));
 
         /// <summary>
-        /// Whether two normalized words name the same: equal, a word and its abbreviation ("straat", "str"), or a compound and its abbreviation ("kerkstraat", "kerkstr").
+        /// Whether two normalized words are equal or abbreviate each other, also in compounds.
         /// </summary>
         public bool Same(string a, string b)
             => a == b
@@ -68,8 +68,8 @@ namespace TurtleRoute.OpenCage
                || IsCompoundAbbreviation(b, a);
 
         /// <summary>
-        /// The text with abbreviations written out where they stand for one word, e.g. "Avenue Louise 149" for "Av. Louise 149".
-        /// An abbreviation with a vowel ("Av", "Burg") is only written out with its dot, as without it it may be an ordinary word ("Burg" is a castle in German).
+        /// Writes out abbreviations, e.g. "Avenue Louise" for "Av. Louise".
+        /// One with a vowel only when written with its dot, as "Burg" is also a word.
         /// </summary>
         public string Expand(string text)
             => string.IsNullOrEmpty(text) ? text : Token.Replace(text, match =>
@@ -89,7 +89,7 @@ namespace TurtleRoute.OpenCage
             equivalents.Add(other);
         }
 
-        // "kerkstr" for "kerkstraat": the same stem with the full word at the end abbreviated.
+        // "kerkstr" for "kerkstraat".
         private bool IsCompoundAbbreviation(string full, string abbreviated)
             => _suffixes.Any(s => full.Length > s.Long.Length && full.EndsWith(s.Long, StringComparison.Ordinal)
                                   && abbreviated == full[..^s.Long.Length] + s.Short);

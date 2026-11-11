@@ -92,7 +92,7 @@ namespace TurtleRoute.OpenCage
         /// </summary>
         public bool Matches(string query, StreetAbbreviations abbreviations)
         {
-            // The comma-separated part each word comes from, so a street is only recognised by the words around it in its own part.
+            // Which comma-separated part each word is in.
             string[] parts = query.Split(',');
             int[] segments = [.. parts.SelectMany((part, i) => Words.Split(part).Select(_ => i))];
             List<string> words = [.. parts.SelectMany(Words.Split)];
@@ -121,9 +121,8 @@ namespace TurtleRoute.OpenCage
         }
 
         /// <summary>
-        /// Where the street is named in the query words, and how many words it spans, or -1. Abbreviations count as the full word ("Kerkstr." is "Kerkstraat").
-        /// The query may leave out the leading words of the name, such as the street type ("Champs-Elysees" for "Avenue des Champs-Elysees"),
-        /// but then nothing but a house number may stand next to it in its comma-separated part: "Avenue du Chateau" is not "Rue du Chateau".
+        /// Where the street is named in the query, and how many words it spans, or -1.
+        /// The query may leave out the start of the name ("Champs-Elysees" for "Avenue des Champs-Elysees") if only a house number stands next to it.
         /// </summary>
         private static int FindStreet(IReadOnlyList<string> words, int[] segments, string[] street, StreetAbbreviations abbreviations, out int length)
         {
