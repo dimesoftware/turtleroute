@@ -81,17 +81,37 @@ namespace TurtleRoute.Here
             }
 
             Route journey = new() { Revisions = revisions };
-            journey.Legs.AddRange(route.Sections.Select(section => new Leg()
-            {
-                Distance = section.Summary?.Length ?? 0,
-                Duration = section.Summary?.Duration ?? 0,
-                Waypoints = FlexiblePolyline.Decode(section.Polyline)
-            }));
+            journey.Legs.AddRange(ToLegs(route.Sections));
 
             journey.Distance = journey.Legs.Sum(leg => leg.Distance);
             journey.Duration = journey.Legs.Sum(leg => leg.Duration);
 
             return journey;
+        }
+
+        /// <summary>
+        /// One leg per pair of consecutive stops, as Azure Maps returns them: sections up to the next requested waypoint are merged, so a ferry does not add legs.
+        /// Without waypoint markers in the response, every section is a leg.
+        /// </summary>
+        private static IEnumerable<Leg> ToLegs(List<HereSection> sections)
+        {
+            bool marksStops = sections.Any(section => section.Arrival?.Place?.Waypoint != null);
+            List<HereSection> leg = [];
+
+            for (int i = 0; i < sections.Count; i++)
+            {
+                leg.Add(sections[i]);
+                if (marksStops && sections[i].Arrival?.Place?.Waypoint == null && i < sections.Count - 1)
+                    continue;
+
+                yield return new Leg()
+                {
+                    Distance = leg.Sum(section => section.Summary?.Length ?? 0),
+                    Duration = leg.Sum(section => section.Summary?.Duration ?? 0),
+                    Waypoints = [.. leg.SelectMany(section => FlexiblePolyline.Decode(section.Polyline))]
+                };
+                leg = [];
+            }
         }
 
         /// <summary>

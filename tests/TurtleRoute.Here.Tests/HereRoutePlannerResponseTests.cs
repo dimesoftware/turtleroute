@@ -40,6 +40,26 @@ namespace TurtleRoute.Here.Tests
         }
 
         [TestMethod]
+        public async Task GetRouteAsync_ShouldMergeFerrySectionsIntoOneLegPerStop()
+        {
+            // Antwerp to Ghent crosses a ferry: car to the terminal, the ferry, car to Ghent. Ghent to Brussels is one section.
+            StubHandler handler = new StubHandler().On("/routes", Routes(
+                Section(600, 10000, waypoint: null),
+                Section(1200, 3000, waypoint: null, type: "transit"),
+                Section(300, 5000, waypoint: 1),
+                Section(900, 18000, waypoint: 2)));
+
+            Route route = await Create(handler).GetRouteAsync(Antwerp, Ghent, Brussels);
+
+            Assert.HasCount(2, route.Legs);
+            Assert.AreEqual(2100, route.Legs[0].Duration);
+            Assert.AreEqual(18000, route.Legs[0].Distance);
+            Assert.HasCount(12, route.Legs[0].Waypoints.ToList());
+            Assert.AreEqual(900, route.Legs[1].Duration);
+            Assert.AreEqual(3000, route.Duration);
+        }
+
+        [TestMethod]
         public async Task GetRouteAsync_ShouldDecodePolylineIntoWaypoints()
         {
             StubHandler handler = new StubHandler().On("/routes", Routes(Section(60, 1000)));
@@ -256,5 +276,11 @@ namespace TurtleRoute.Here.Tests
 
         private static string Section(int duration, int length)
             => $$"""{"id":"s","type":"vehicle","summary":{"duration":{{duration}},"length":{{length}},"baseDuration":{{duration}}},"polyline":"{{Polyline}}"}""";
+
+        private static string Section(int duration, int length, int? waypoint, string type = "vehicle")
+        {
+            string place = waypoint is null ? """{"type":"place"}""" : $$"""{"type":"place","waypoint":{{waypoint}}}""";
+            return $$"""{"id":"s","type":"{{type}}","arrival":{"place":{{place}}},"summary":{"duration":{{duration}},"length":{{length}},"baseDuration":{{duration}}},"polyline":"{{Polyline}}"}""";
+        }
     }
 }

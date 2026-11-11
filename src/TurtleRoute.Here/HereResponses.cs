@@ -15,7 +15,7 @@ namespace TurtleRoute.Here
     internal class HereRoute
     {
         /// <summary>
-        /// One section per leg: every via waypoint is a stopover that starts a new section.
+        /// Every via waypoint starts a new section, and so does an implicit change of mode, such as a ferry in a driving route.
         /// </summary>
         [JsonPropertyName("sections")]
         public List<HereSection> Sections { get; set; } = [];
@@ -28,6 +28,24 @@ namespace TurtleRoute.Here
 
         [JsonPropertyName("polyline")]
         public string Polyline { get; set; }
+
+        [JsonPropertyName("arrival")]
+        public HereSectionEnd Arrival { get; set; }
+    }
+
+    internal class HereSectionEnd
+    {
+        [JsonPropertyName("place")]
+        public HerePlace Place { get; set; }
+    }
+
+    internal class HerePlace
+    {
+        /// <summary>
+        /// The index of the requested waypoint this place is, or null for a place HERE added, such as a ferry terminal.
+        /// </summary>
+        [JsonPropertyName("waypoint")]
+        public int? Waypoint { get; set; }
     }
 
     internal class HereSummary

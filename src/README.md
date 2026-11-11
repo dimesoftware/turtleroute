@@ -109,7 +109,7 @@ builder.Services.AddTurtleRoute()
     .AddAzureMapsRouting(o => o.ApiKey = config["AzureMaps:ApiKey"]);
 ```
 
-Routes use the HERE Routing API v8 and return the polyline of each leg in `Leg.Waypoints`. With `OptimizeWaypointOrder`, the order is first calculated by the HERE Waypoints Sequence API, which is a second billable transaction; it is skipped when there are fewer than two intermediate stops. The matrix uses the HERE Matrix Routing API v8 in a single region-mode request when all coordinates fit within 400 km, and in chunks of 15 origins otherwise.
+Routes use the HERE Routing API v8 and return one leg per pair of consecutive stops, as Azure Maps does, with its polyline in `Leg.Waypoints`: HERE also starts a section at a ferry, and those sections are merged into the leg. With `OptimizeWaypointOrder`, the order is first calculated by the HERE Waypoints Sequence API, which is a second billable transaction; it is skipped when there are fewer than two intermediate stops. The matrix uses the HERE Matrix Routing API v8 in a single region-mode request when all coordinates fit within 400 km, and in chunks of 15 origins otherwise.
 
 ## Contributing
 
