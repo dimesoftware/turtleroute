@@ -38,7 +38,7 @@ GeocodeResult? result = await geocoder.GeocodeAsync(new Address("Katwilgweg", "2
 
 The pipeline returns `null` when no layer produced an acceptable result, and throws a `GeocodingException` only when every layer failed, so callers can tell "address not found" apart from "try again later".
 
-OpenCage returns its best text match even when it lies elsewhere, such as a same-named street in another city or a building somewhere in the country for random letters. `OpenCageGeocoder` therefore takes the first of its top 5 results on the requested street and in the requested postcode or city, and scores the result `Low` when none is, so the pipeline falls back. It asks for local names (`Language` defaults to `"native"`) to compare them with the address.
+OpenCage returns its best text match even when it lies elsewhere, such as a same-named street in another city or a building somewhere in the country for random letters. `OpenCageGeocoder` therefore takes the first of its top 5 results on the requested street and in the requested postcode or city, and scores the result `Low` when none is, so the pipeline falls back. It asks for local names (`Language` defaults to `"native"`) to compare them with the address. Street names written differently still match: abbreviations such as `Kerkstr.`, `Bd`, `Chée` or `Rd` are compared as the full word (and unambiguous ones are written out in the query, as OpenCage does not understand `Av. Louise`), and a leading street type the address leaves out is allowed (`Champs-Élysées` for `Avenue des Champs-Élysées`), but not a different one (`Avenue du Château` is not `Rue du Château`).
 
 ### Failures, timeouts and retries
 

@@ -50,6 +50,9 @@ namespace TurtleRoute.OpenCage
 
         private IEnumerable<string[]> StreetNames => Names(Street);
 
+        // Street names as compared with the query, in canonical words (see Words.IndexOfStreet).
+        private IEnumerable<string[]> CanonicalStreetNames => StreetNames.Select(Words.Canonical);
+
         private IEnumerable<string[]> Localities => LocalityKeys.SelectMany(key => Names(Get(key)));
 
         /// <summary>
@@ -67,8 +70,10 @@ namespace TurtleRoute.OpenCage
             // The street field often holds more than the street, e.g. "Suite 400, 1000 Broadway".
             // In the countryside it may name a hamlet instead, e.g. "Dünninghausen 10, 59269 Beckum".
             string[] street = Words.Split(address.Street);
-            IEnumerable<string[]> places = Street != null ? StreetNames : Localities;
-            if (street.Length > 0 && !places.Any(name => Words.IndexOf(street, name) >= 0))
+            bool onStreet = Street != null
+                ? CanonicalStreetNames.Any(name => Words.IndexOfStreet(Words.Canonical(street), name, out _) >= 0)
+                : Localities.Any(name => Words.IndexOf(street, name) >= 0);
+            if (street.Length > 0 && !onStreet)
                 return false;
 
             if (zip.Length > 0 && postcode.Length > 0)
@@ -91,7 +96,7 @@ namespace TurtleRoute.OpenCage
             if (Type == "postcode")
                 return RemovePostcode(words);
 
-            if (Street != null && !StreetNames.Any(street => RemoveStreet(words, street)))
+            if (Street != null && !CanonicalStreetNames.Any(street => RemoveStreet(words, street)))
                 return false;
 
             bool inLocality = false;
@@ -112,13 +117,14 @@ namespace TurtleRoute.OpenCage
         }
 
         // Also removes the house number next to the street, so it is not taken for a postcode.
+        // The street is looked up in canonical words, which line up one to one with the query words.
         private static bool RemoveStreet(List<string> words, string[] street)
         {
-            int start = Words.IndexOf([.. words], street);
+            int start = Words.IndexOfStreet(Words.Canonical([.. words]), street, out int length);
             if (start < 0)
                 return false;
 
-            int end = start + street.Length;
+            int end = start + length;
             if (end < words.Count && words[end].All(char.IsDigit))
                 end++;
             else if (start > 0 && words[start - 1].All(char.IsDigit))

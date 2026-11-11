@@ -429,6 +429,81 @@ namespace TurtleRoute.OpenCage.Tests
             Assert.DoesNotContain("countrycode", query);
         }
 
+        // Street names written differently from OpenCage's: abbreviations, glued suffixes and a street type the query leaves out.
+        [TestMethod]
+        [DataRow("Kerkstr. 1, 9000 Gent", "Kerkstraat", "Gent", "9000")]
+        [DataRow("Hauptstr. 5, 10115 Berlin", "Hauptstraße", "Berlin", "10115")]
+        [DataRow("Lichtaartsestwg 12, 2275 Lille", "Lichtaartsesteenweg", "Lille", "2275")]
+        [DataRow("10 Clews Rd, B98 7ST Redditch", "Clews Road", "Redditch", "B98 7ST")]
+        [DataRow("Bd Anspach 10, 1000 Bruxelles", "Boulevard Anspach - Anspachlaan", "Bruxelles - Brussel", "1000")]
+        [DataRow("Champs-Élysées 101, 75008 Paris", "Avenue des Champs-Élysées", "Paris", "75008")]
+        [DataRow("Station 5, 5380 Fernelmont", "Rue de la Station", "Fernelmont", "5380")]
+        public async Task GeocodeAsync_StreetWrittenDifferently_ShouldBeAccepted(string query, string road, string city, string postcode)
+        {
+            StubHandler handler = StubHandler.Json(HttpStatusCode.OK, Result(10, $$"""{"_type":"building","road":"{{road}}","city":"{{city}}","postcode":"{{postcode}}"}"""));
+
+            GeocodeResult result = await Create(handler).GeocodeAsync(query, "");
+
+            Assert.AreEqual(GeocodeConfidence.High, result.Confidence);
+        }
+
+        [TestMethod]
+        [DataRow("Kerkstr.", "Kerkstraat")]
+        [DataRow("Champs-Élysées", "Avenue des Champs-Élysées")]
+        [DataRow("Station", "Rue de la Station")]
+        public async Task GeocodeAsync_StructuredStreetWrittenDifferently_ShouldBeAccepted(string street, string road)
+        {
+            StubHandler handler = StubHandler.Json(HttpStatusCode.OK, Result(10, $$"""{"_type":"building","road":"{{road}}","house_number":"1","city":"Gent","postcode":"9000"}"""));
+
+            GeocodeResult result = await Create(handler).GeocodeAsync(new Address(street, "1", "9000", "Gent", "", "BE"));
+
+            Assert.AreEqual(GeocodeConfidence.High, result.Confidence);
+        }
+
+        [TestMethod]
+        [DataRow("Av. Louise 149, 1050 Bruxelles", "Avenue Louise 149, 1050 Bruxelles")]
+        [DataRow("Chée de Louvain 10, 1210 Saint-Josse", "Chaussée de Louvain 10, 1210 Saint-Josse")]
+        [DataRow("bd anspach 10, Bruxelles", "Boulevard anspach 10, Bruxelles")]
+        [DataRow("Clews Rd, Redditch", "Clews Road, Redditch")]
+        [DataRow("Dr. Willemsstraat 1, Gent", "Dr. Willemsstraat 1, Gent")] // "Dr." is a title as often as "Drive"
+        [DataRow("Avenue Louise 149, 1050 Bruxelles", "Avenue Louise 149, 1050 Bruxelles")]
+        [DataRow("Ravel 1, Bdx", "Ravel 1, Bdx")]
+        public async Task GeocodeAsync_ShouldWriteOutStreetTypeAbbreviationsInTheQuery(string input, string sent)
+        {
+            StubHandler handler = StubHandler.Json(HttpStatusCode.OK, Result(10, """{"_type":"city","city":"Bruxelles"}"""));
+
+            await Create(handler).GeocodeAsync(input, "BE");
+
+            StringAssert.Contains(Uri.UnescapeDataString(handler.LastRequest.RequestUri.Query), $"q={sent}&");
+        }
+
+        [TestMethod]
+        public async Task GeocodeAsync_StructuredStreetAbbreviation_ShouldBeWrittenOutInTheQuery()
+        {
+            StubHandler handler = StubHandler.Json(HttpStatusCode.OK, Result(10, """{"_type":"building","road":"Avenue Louise - Louizalaan","house_number":"149","city":"Bruxelles - Brussel","postcode":"1050"}"""));
+
+            GeocodeResult result = await Create(handler).GeocodeAsync(new Address("Av. Louise", "149", "1050", "Bruxelles", "", "BE"));
+
+            StringAssert.Contains(Uri.UnescapeDataString(handler.LastRequest.RequestUri.Query), "q=Avenue Louise 149, 1050, Bruxelles, Belgium&");
+            Assert.AreEqual(GeocodeConfidence.High, result.Confidence);
+        }
+
+        // Tolerance must not turn a different street into a match.
+        [TestMethod]
+        [DataRow("Champs 101, 75008 Paris", "Avenue des Champs-Élysées", "Paris", "75008")]   // part of the name only
+        [DataRow("Kerkweg 1, 9000 Gent", "Kerkstraat", "Gent", "9000")]                          // another street
+        [DataRow("Rue de la Gare 5, 5380 Fernelmont", "Rue de la Station", "Fernelmont", "5380")] // same type, other name
+        [DataRow("Avenue 3, 1000 Bruxelles", "Avenue Louise - Louizalaan", "Bruxelles - Brussel", "1000")] // only the street type
+        [DataRow("Kerkstr. 1, 9000 Gent", "Kerkstraat", "Lokeren", "9160")]                       // right street, other town
+        public async Task GeocodeAsync_DifferentStreetOrPlace_ShouldStayLow(string query, string road, string city, string postcode)
+        {
+            StubHandler handler = StubHandler.Json(HttpStatusCode.OK, Result(10, $$"""{"_type":"building","road":"{{road}}","city":"{{city}}","postcode":"{{postcode}}"}"""));
+
+            GeocodeResult result = await Create(handler).GeocodeAsync(query, "");
+
+            Assert.AreEqual(GeocodeConfidence.Low, result.Confidence);
+        }
+
         [TestMethod]
         public void Constructor_MissingApiKey_ThrowsArgumentNullException()
             => Assert.Throws<ArgumentNullException>(() => new OpenCageGeocoder(new HttpClient(), new OpenCageOptions()));

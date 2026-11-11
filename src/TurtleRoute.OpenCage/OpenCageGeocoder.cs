@@ -43,7 +43,7 @@ namespace TurtleRoute.OpenCage
 
             // Formatted as https://opencagedata.com/guides/how-to-format-your-geocoding-query recommends, e.g. "Katwilgweg 2, 2050, Antwerpen, Belgium".
             // The country goes in by name, as an ISO code in the query is ambiguous.
-            string query = Join(", ", Join(" ", address.Street, address.StreetNo), address.ZipCode, address.City, address.State, ToCountryName(address.Country));
+            string query = Join(", ", Join(" ", Words.ExpandAbbreviations(address.Street), address.StreetNo), address.ZipCode, address.City, address.State, ToCountryName(address.Country));
             if (query.Length < 2)
                 return null;
 
@@ -72,7 +72,7 @@ namespace TurtleRoute.OpenCage
                 return null;
 
             // An ISO 3166-1 alpha-2 code restricts the search to that country; anything else is added to the query.
-            string text = address.Trim().ReplaceLineEndings(", ");
+            string text = Words.ExpandAbbreviations(address.Trim().ReplaceLineEndings(", "));
             string query = ToCountryCode(countryFilter) == null && !string.IsNullOrWhiteSpace(countryFilter) ? $"{text}, {countryFilter}" : text;
 
             List<OpenCageResult> results = await SearchAsync(query, countryFilter, cancellationToken);
